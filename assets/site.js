@@ -51,7 +51,11 @@
   ig.textContent = "instagram " + C.instagramHandle;
 
   const menu = $("menu-list");
-  if (menu) {
+  if (!C.menu.length) {
+    // No menu published yet: hide the section and its nav link rather than show an empty heading.
+    if (menu) $("menu").hidden = true;
+    document.querySelectorAll('a[href$="#menu"]').forEach((a) => (a.parentElement.hidden = true));
+  } else if (menu) {
     C.menu.forEach((group) => {
       const box = el("div");
       box.append(el("h3", group.title));
