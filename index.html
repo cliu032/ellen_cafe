@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ellen Cafe</title>
+  <meta name="description" content="Ellen Cafe — coffee, bakes and a quiet table. Reserve online.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="index.html" data-cafe="name">Ellen Cafe</a>
+      <ul>
+        <li><a href="#menu">Menu</a></li>
+        <li><a href="#visit">Visit</a></li>
+        <li><a href="reserve.html">Reserve</a></li>
+      </ul>
+    </nav>
+
+    <header class="hero">
+      <div class="label" data-cafe="tagline"></div>
+      <h1 data-cafe="name">Ellen Cafe</h1>
+      <p data-cafe="intro"></p>
+      <a class="btn" href="reserve.html">Reserve a table</a>
+    </header>
+
+    <section id="menu">
+      <div class="split">
+        <div>
+          <div class="label">01</div>
+          <h2>Menu</h2>
+        </div>
+        <div class="menu" id="menu-list"></div>
+      </div>
+    </section>
+
+    <section id="visit">
+      <div class="split">
+        <div>
+          <div class="label">02</div>
+          <h2>Visit</h2>
+        </div>
+        <div class="visit">
+          <div>
+            <div class="label" style="margin-bottom:14px">Find us</div>
+            <div id="address"></div>
+            <p id="contact" style="margin-top:18px"></p>
+          </div>
+          <div>
+            <div class="label" style="margin-bottom:8px">Hours</div>
+            <table class="hours" id="hours"></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="label">03</div>
+      <h2>Save a seat.</h2>
+      <a class="btn" href="reserve.html">Reserve a table</a>
+    </section>
+
+    <footer>
+      <span>© <span id="year"></span> <span data-cafe="name">Ellen Cafe</span></span>
+      <a class="link" id="ig" target="_blank" rel="noopener"></a>
+    </footer>
+  </div>
+  <script src="assets/config.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>

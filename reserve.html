@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reserve — Ellen Cafe</title>
+  <meta name="description" content="Reserve a table at Ellen Cafe.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="index.html" data-cafe="name">Ellen Cafe</a>
+      <ul>
+        <li><a href="index.html#menu">Menu</a></li>
+        <li><a href="index.html#visit">Visit</a></li>
+        <li><a href="reserve.html" aria-current="page">Reserve</a></li>
+      </ul>
+    </nav>
+
+    <main class="reserve">
+      <div id="form-view">
+        <div class="label">Reservations</div>
+        <h1>Reserve a table</h1>
+        <p>Send a request and we'll confirm by email. For larger groups, please write to us directly.</p>
+
+        <form id="reserve-form" novalidate>
+          <div class="field">
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" required>
+          </div>
+          <div class="field">
+            <label for="time">Time</label>
+            <select id="time" name="time" required disabled>
+              <option value="">Choose a date first</option>
+            </select>
+          </div>
+          <div class="field full"><p class="hint" id="date-hint" aria-live="polite"></p></div>
+          <div class="field">
+            <label for="party">Guests</label>
+            <select id="party" name="party" required></select>
+          </div>
+          <div class="field">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="phone">Phone (optional)</label>
+            <input type="tel" id="phone" name="phone" autocomplete="tel">
+          </div>
+          <div class="field full">
+            <label for="notes">Notes (optional)</label>
+            <textarea id="notes" name="notes" rows="2" maxlength="500"></textarea>
+          </div>
+          <div class="actions">
+            <button class="btn" type="submit" id="submit">Request reservation</button>
+            <p class="error" id="error" role="alert"></p>
+          </div>
+        </form>
+      </div>
+
+      <div id="done-view" hidden>
+        <div class="label">Reservations</div>
+        <h1 id="done-title" tabindex="-1">Thank you.</h1>
+        <p id="done-text"></p>
+        <dl class="summary" id="summary"></dl>
+        <a class="btn ghost" href="index.html">Back to home</a>
+      </div>
+    </main>
+
+    <footer>
+      <span>© <span id="year"></span> <span data-cafe="name">Ellen Cafe</span></span>
+      <a class="link" id="ig" target="_blank" rel="noopener"></a>
+    </footer>
+  </div>
+  <script src="assets/config.js"></script>
+  <script src="assets/site.js"></script>
+  <script src="assets/reserve.js"></script>
+</body>
+</html>
