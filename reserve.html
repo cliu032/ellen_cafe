@@ -1,8 +1,8 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>Reserve — ellen cafe &amp; eatery</title>
-  <meta name="description" content="Request a table at ellen cafe &amp; eatery, Alexandria.">
+  <title>Reservations — ellen cafe &amp; eatery</title>
+  <meta name="description" content="Reservations at ellen cafe &amp; eatery, Alexandria. Breakfast and lunch are walk-in only.">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3efe4">
@@ -19,61 +19,90 @@
       <ul>
         <li><a href="index.html#menu">menu</a></li>
         <li><a href="index.html#visit">visit</a></li>
-        <li><a href="reserve.html" aria-current="page">reserve</a></li>
+        <li data-if="bookings" hidden><a href="reserve.html" aria-current="page">reserve</a></li>
       </ul>
     </nav>
 
     <main class="reserve">
-      <div id="form-view">
-        <div class="label">reservations</div>
-        <h1>reserve a table</h1>
-        <p data-cafe="reserveIntro"></p>
+      <!-- Shown until dinner nights are set in assets/config.js: there is nothing to reserve yet. -->
+      <div id="closed-view">
+        <p class="label">reservations</p>
+        <h1>walk-ins only</h1>
+        <p class="lede">We don't take bookings for breakfast or lunch. Just come by, Tuesday to Sunday.</p>
+        <p class="hero-actions">
+          <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a>
+          <a class="link" href="index.html#visit">opening hours</a>
+        </p>
+      </div>
+
+      <div id="form-view" hidden>
+        <p class="label">reservations</p>
+        <h1>reserve for dinner</h1>
+        <p class="lede" data-cafe="reserveIntro"></p>
 
         <form id="reserve-form" novalidate>
-          <div class="field">
-            <label for="date">Date</label>
-            <input type="date" id="date" name="date" required>
-          </div>
-          <div class="field">
-            <label for="time">Time</label>
-            <select id="time" name="time" required disabled>
-              <option value="">Choose a date first</option>
-            </select>
-          </div>
-          <div class="field full"><p class="hint" id="date-hint" aria-live="polite"></p></div>
-          <div class="field">
-            <label for="party">Guests</label>
-            <select id="party" name="party" required></select>
-          </div>
-          <div class="field">
-            <label for="name">Name</label>
-            <input type="text" id="name" name="name" autocomplete="name" maxlength="100" required>
-          </div>
-          <div class="field">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" autocomplete="email" maxlength="254" required>
-          </div>
-          <div class="field">
-            <label for="phone">Phone (optional)</label>
-            <input type="tel" id="phone" name="phone" autocomplete="tel" maxlength="30">
-          </div>
-          <div class="field full">
-            <label for="notes">Notes (optional)</label>
-            <textarea id="notes" name="notes" rows="2" maxlength="500"></textarea>
-          </div>
-          <div class="actions">
-            <button class="btn" type="submit" id="submit">request reservation</button>
+          <fieldset class="group" id="party-group">
+            <legend>Guests</legend>
+            <div class="chips" id="party-chips"></div>
+            <p class="hint" id="party-hint"></p>
+          </fieldset>
+
+          <fieldset class="group" id="date-group" aria-describedby="date-error">
+            <legend>Date</legend>
+            <div class="cal-head" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+            <div class="cal" id="cal"></div>
+            <button class="textbtn" type="button" id="more-dates">show later dates</button>
+            <p class="field-error" id="date-error"></p>
+          </fieldset>
+
+          <fieldset class="group" id="time-group" aria-describedby="time-hint time-error">
+            <legend>Time</legend>
+            <p class="hint" id="time-hint" aria-live="polite"></p>
+            <div class="chips times" id="time-chips"></div>
+            <p class="field-error" id="time-error"></p>
+          </fieldset>
+
+          <fieldset class="group" id="details-group">
+            <legend>Your details</legend>
+            <div class="fields">
+              <div class="field">
+                <label for="name">Name</label>
+                <input type="text" id="name" name="name" autocomplete="name" maxlength="100" required aria-describedby="name-error">
+                <p class="field-error" id="name-error"></p>
+              </div>
+              <div class="field">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" required aria-describedby="email-error">
+                <p class="field-error" id="email-error"></p>
+              </div>
+              <div class="field">
+                <label for="phone">Phone <span class="optional">optional</span></label>
+                <input type="tel" id="phone" name="phone" autocomplete="tel" maxlength="30" aria-describedby="phone-error">
+                <p class="field-error" id="phone-error"></p>
+              </div>
+              <div class="field full">
+                <label for="notes">Anything we should know? <span class="optional">optional</span></label>
+                <textarea id="notes" name="notes" rows="2" maxlength="500"></textarea>
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="send">
+            <p class="summary-line" id="summary-line"></p>
+            <button class="btn" type="submit" id="submit">send request</button>
             <p class="error" role="alert"><span id="error"></span> <a class="link" id="email-instead" hidden>Send it by email instead</a></p>
+            <p class="hint" id="fine-print"></p>
           </div>
         </form>
       </div>
 
       <div id="done-view" hidden>
-        <div class="label">reservations</div>
-        <h1 id="done-title" tabindex="-1">thank you.</h1>
-        <p id="done-text"></p>
+        <p class="label">reservations</p>
+        <h1 id="done-title" tabindex="-1">request sent</h1>
+        <p class="lede" id="done-text"></p>
         <dl class="summary" id="summary"></dl>
-        <a class="btn ghost" href="index.html">back to home</a>
+        <p class="hint" id="done-next"></p>
+        <p><a class="btn ghost" href="index.html">back to home</a></p>
       </div>
     </main>
 

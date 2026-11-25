@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
-  <!-- This page shows guests' contact details, so it only runs its own scripts and only talks to Supabase. -->
+  <!-- This page shows guests' contact details, so it only runs its own scripts, and apart from the web font it only talks to Supabase. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'">
   <meta name="theme-color" content="#f3efe4">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
@@ -64,6 +64,7 @@
       </section>
 
       <section id="view-app" hidden>
+        <p class="warning" id="signup-warning" hidden>Anyone can still create an account on this Supabase project. Only owners should have one: in Supabase, open Authentication → Sign In / Providers and switch off “Allow new users to sign up”.</p>
         <div class="tabs" role="tablist" aria-label="Owner area">
           <button type="button" role="tab" id="tab-reservations" aria-controls="panel-reservations" aria-selected="true">reservations <span class="badge" id="pending-badge" hidden></span></button>
           <button type="button" role="tab" id="tab-photos" aria-controls="panel-photos" aria-selected="false" tabindex="-1">photos</button>

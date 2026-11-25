@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <title>ellen cafe &amp; eatery — Alexandria, Sydney</title>
-  <meta name="description" content="ellen cafe &amp; eatery, 18 Huntley St, Alexandria. Open Tuesday to Sunday.">
+  <meta name="description" content="ellen cafe &amp; eatery, 153/18 Huntley St, Alexandria, near Sydney Park. Open Tuesday to Sunday. Walk-ins only for breakfast and lunch.">
   <meta property="og:title" content="ellen cafe &amp; eatery">
-  <meta property="og:description" content="Cafe &amp; eatery at 18 Huntley St, Alexandria. Open Tuesday to Sunday.">
+  <meta property="og:description" content="Cafe &amp; eatery near Sydney Park, Alexandria. Open Tuesday to Sunday. Walk-ins only for breakfast and lunch.">
   <meta property="og:type" content="website">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -22,16 +22,21 @@
       <ul>
         <li><a href="#menu">menu</a></li>
         <li><a href="#visit">visit</a></li>
-        <li><a href="reserve.html">reserve</a></li>
+        <li data-if="bookings" hidden><a href="reserve.html">reserve</a></li>
       </ul>
     </nav>
 
     <main>
       <header class="hero">
         <h1 class="wordmark" aria-label="ellen cafe &amp; eatery"><span aria-hidden="true">caf<b>elle</b>atery<b>n</b></span></h1>
-        <p class="label" data-cafe="tagline"></p>
-        <p class="intro" data-cafe="intro"></p>
-        <a class="btn" href="reserve.html">reserve a table</a>
+        <p class="label" data-cafe="tagline">cafe &amp; eatery · alexandria, sydney</p>
+        <p class="status" id="open-status" hidden></p>
+        <p class="intro" data-cafe="intro">A small neighbourhood cafe and eatery near Sydney Park. Open Tuesday to Sunday.</p>
+        <p class="walkin" data-cafe="walkInNote">Walk-ins only for breakfast and lunch. No booking needed.</p>
+        <p class="hero-actions">
+          <a class="btn" id="hero-primary" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a>
+          <a class="link" id="hero-secondary" href="#menu">see the menu</a>
+        </p>
       </header>
 
       <section id="gallery" class="gallery-section" aria-labelledby="gallery-h" hidden>
@@ -45,6 +50,7 @@
           <div>
             <div class="menu" id="menu-list"></div>
             <p class="note" data-cafe="menuNote"></p>
+            <noscript><p class="note">The menu needs JavaScript to display. Find today's dishes on <a class="link" href="https://www.instagram.com/ellen_cafe/">Instagram</a>.</p></noscript>
           </div>
         </div>
       </section>
@@ -54,22 +60,31 @@
           <h2 id="visit-h">visit</h2>
           <div class="visit">
             <div>
-              <div class="label">find us</div>
-              <address id="address" style="font-style:normal"></address>
-              <p id="contact" style="margin-top:18px"></p>
+              <h3 class="label">find us</h3>
+              <address id="address"><p>153/18 Huntley St</p><p>Alexandria NSW 2015</p></address>
+              <p><a class="link" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a></p>
+              <p id="contact"><a class="link" href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a></p>
             </div>
             <div>
-              <div class="label">hours</div>
-              <table class="hours" id="hours"></table>
-              <p class="note" data-cafe="hoursNote" style="margin-top:14px"></p>
+              <h3 class="label">hours</h3>
+              <table class="hours" id="hours"><tbody><tr><th scope="row">Tuesday to Sunday</th><td>Open</td></tr><tr><th scope="row">Monday</th><td>Closed</td></tr></tbody></table>
+              <p class="note" id="hours-note">Walk-ins only. No bookings needed.</p>
             </div>
           </div>
         </div>
       </section>
 
       <section class="cta" aria-labelledby="cta-h">
-        <h2 id="cta-h">save a seat.</h2>
-        <a class="btn" href="reserve.html">reserve a table</a>
+        <div data-if="walk-in-only">
+          <h2 id="cta-h">no booking needed.</h2>
+          <p>Just come by, Tuesday to Sunday.</p>
+          <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a>
+        </div>
+        <div data-if="bookings" hidden>
+          <h2>dinner? save a seat.</h2>
+          <p>Breakfast and lunch stay walk-in only.</p>
+          <a class="btn" href="reserve.html">reserve for dinner</a>
+        </div>
       </section>
     </main>
 

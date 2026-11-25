@@ -3,11 +3,11 @@
 window.CAFE = {
   name: "ellen cafe & eatery",
   tagline: "cafe & eatery · alexandria, sydney",
-  intro: "A small neighbourhood cafe and eatery near Sydney Park. A short menu, changing specials and coffee, Tuesday to Sunday.",
+  intro: "A small neighbourhood cafe and eatery near Sydney Park. Open Tuesday to Sunday.",
+  walkInNote: "Walk-ins only for breakfast and lunch. No booking needed.",
   menuNote: "A sample of the menu. Dishes and prices change often, and there are specials most days.", // CHECK
   hoursNote: "",
-  reserveIntro:
-    "Send a request and we'll reply by email to confirm. Walk-ins are always welcome.",
+  reserveIntro: "Dinner is by reservation. Send a request and we'll email you to confirm. Breakfast and lunch stay walk-in only.",
 
   instagram: "https://www.instagram.com/ellen_cafe/",
   instagramHandle: "@ellen_cafe",
@@ -18,6 +18,7 @@ window.CAFE = {
   mapUrl: "https://www.google.com/maps/search/?api=1&query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015",
   timezone: "Australia/Sydney",
 
+  // Daytime opening hours. Daytime service is walk-in only: these hours are never bookable.
   // 0 = Sunday … 6 = Saturday. Use null for a closed day. 24-hour times.
   // "Tue–Sun" is from the café's Instagram bio. CHECK the times: they come from current
   // third-party listings (Apple Maps and others), not from the café itself.
@@ -29,6 +30,19 @@ window.CAFE = {
     4: { open: "07:30", close: "14:30" },
     5: { open: "07:30", close: "14:30" },
     6: { open: "07:30", close: "15:00" },
+  },
+
+  // Dinner is by reservation. While `hours` below is empty, the website takes no reservations
+  // and says nothing about dinner. To start taking them, list the nights dinner is served.
+  dinner: {
+    // First night of dinner service, "YYYY-MM-DD". Guests can reserve from this date on.
+    // Leave empty once dinner is already running.
+    from: "",
+    // 0 = Sunday … 6 = Saturday, 24-hour times. For example, Thursday to Saturday nights:
+    //   4: { open: "17:30", close: "21:30" },
+    //   5: { open: "17:30", close: "22:00" },
+    //   6: { open: "17:30", close: "22:00" },
+    hours: {},
   },
 
   // Each item: { name, price (optional), desc (optional) }. Leave the list empty to hide the menu.
@@ -77,18 +91,19 @@ window.CAFE = {
     },
   ],
 
-  // Reservation requests are stored in the Supabase project below (table public.reservations).
-  // Both values are safe to publish: the key can only add a request, never read one.
-  // If either is empty, the form opens the guest's email app with the request instead.
+  // Reservation requests and photos live in the Supabase project below. Both values are safe
+  // to publish: with them the website can add a reservation request and read the photo list,
+  // and nothing else. If either is empty, the form opens the guest's email app instead.
   supabase: {
     url: "https://qgibakqqtmfbbafclnfo.supabase.co",
     publishableKey: "sb_publishable_P2HPVhGGKjtvWITaQQwDlg_lrpw5EyD",
   },
 
+  // Rules for dinner reservations.
   reservation: {
     slotMinutes: 30, // 15, 30 or 60 — the database accepts quarter-hour times only
-    minNoticeMinutes: 30,
-    lastSeatingBeforeCloseMinutes: 60,
+    minNoticeMinutes: 60, // same-day requests need at least this much notice
+    lastSeatingBeforeCloseMinutes: 90, // the last bookable time is this long before closing
     maxParty: 8, // the database accepts up to 20
     maxDaysAhead: 60, // the database accepts up to a year ahead
   },

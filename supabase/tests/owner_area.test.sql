@@ -6,19 +6,26 @@ begin;
 create extension if not exists pgtap;
 select no_plan();
 
+-- Lets the suite delete rows from storage.objects directly, as the Storage API does itself.
+-- (Supabase blocks direct deletes from that table unless this is set.)
+select set_config('storage.allow_delete_query', 'true', true);
+
 -- People ------------------------------------------------------------------------------------
 insert into auth.users (id, email, email_confirmed_at) values
-  ('00000000-0000-4000-8000-000000000001', 'Owner@Example.com',      now()),  -- listed, confirmed
-  ('00000000-0000-4000-8000-000000000002', 'pending@example.com',    null),   -- listed, not confirmed
-  ('00000000-0000-4000-8000-000000000003', 'stranger@example.com',   now());  -- not listed
-insert into private.owners (email) values ('owner@example.com'), ('pending@example.com');
+  ('00000000-0000-4000-8000-000000000001', 'owner@example.com',    now()),  -- on the owner list
+  ('00000000-0000-4000-8000-000000000002', 'former@example.com',   now()),  -- on the list, then deleted
+  ('00000000-0000-4000-8000-000000000003', 'stranger@example.com', now());  -- not on the list
+insert into private.owners (user_id) values
+  ('00000000-0000-4000-8000-000000000001'),
+  ('00000000-0000-4000-8000-000000000002');
 
 -- Signs in as the given account, the way the Data API and Storage do for a request.
 create function pg_temp.claims(uid text) returns text language sql as $$
   select json_build_object('sub', uid, 'role', 'authenticated')::text
 $$;
 select pg_temp.claims('00000000-0000-4000-8000-000000000001') as owner \gset
-select pg_temp.claims('00000000-0000-4000-8000-000000000002') as pending \gset
+select pg_temp.claims('00000000-0000-4000-8000-000000000002') as former \gset
+select pg_temp.claims('00000000-0000-4000-8000-000000000004') as lookalike \gset
 select pg_temp.claims('00000000-0000-4000-8000-000000000003') as stranger \gset
 
 -- Data --------------------------------------------------------------------------------------
@@ -28,7 +35,7 @@ values (:'day', '10:30', 2, 'Ada Lovelace', 'ada@example.com'),
        (:'day', '11:00', 4, 'Grace Hopper', 'grace@example.com');
 insert into public.photos (path, alt, sort_order) values ('first.jpg', 'Coffee on the counter', 1);
 insert into storage.buckets (id, name, public) values ('elsewhere', 'elsewhere', false);
-insert into storage.objects (bucket_id, name) values ('photos', 'first.jpg');
+insert into storage.objects (bucket_id, name) values ('photos', 'first.jpg'), ('elsewhere', 'private.pdf');
 
 -- Structure ---------------------------------------------------------------------------------
 select ok((select relrowsecurity from pg_class where oid = 'public.photos'::regclass),
@@ -40,6 +47,10 @@ select ok(not has_table_privilege('anon', 'private.owners', 'select'),
   'visitors cannot read the owner list');
 select ok(not has_function_privilege('anon', 'public.is_owner()', 'execute'),
   'visitors cannot call is_owner');
+select ok(
+  (select bool_and(attstattarget = 0) from pg_attribute
+    where attrelid = 'public.reservations'::regclass and attnum > 0 and not attisdropped),
+  'no column statistics are kept for reservations, so planner estimates say nothing about its contents');
 select column_privs_are('public', 'reservations', 'status', 'authenticated', array['SELECT', 'UPDATE'],
   'signed-in accounts may only change the status column of a reservation');
 select column_privs_are('public', 'reservations', 'email', 'authenticated', array['SELECT'],
@@ -75,7 +86,7 @@ select throws_ok($$ insert into storage.objects (bucket_id, name) values ('photo
 select is((select count(*) from storage.objects), 0::bigint, 'it cannot list files');
 select lives_ok($$ delete from storage.objects $$, 'its file delete runs');
 select throws_ok('select * from private.owners', '42501', null, 'it cannot read the owner list');
-select throws_ok($$ insert into private.owners (email) values ('stranger@example.com') $$, '42501', null,
+select throws_ok($$ insert into private.owners (user_id) values ('00000000-0000-4000-8000-000000000003') $$, '42501', null,
   'it cannot make itself an owner');
 select throws_ok('select email from auth.users', '42501', null, 'it cannot read accounts');
 reset role;
@@ -86,17 +97,25 @@ select is((select alt from public.photos where path = 'first.jpg'), 'Coffee on t
   '...or a photo');
 select is((select count(*) from storage.objects where bucket_id = 'photos'), 1::bigint, '...or a file');
 
--- A listed address that has not been confirmed -------------------------------------------------
-select set_config('request.jwt.claims', :'pending', true);
+-- An owner whose account is deleted, and a later account with the same address ----------------
+select set_config('request.jwt.claims', :'former', true);
 set local role authenticated;
-select is(public.is_owner(), false, 'a listed but unconfirmed address is not an owner');
+select is(public.is_owner(), true, 'a second listed account is an owner too');
+reset role;
+delete from auth.users where id = '00000000-0000-4000-8000-000000000002';
+select is((select count(*) from private.owners), 1::bigint, 'deleting an account removes it from the owner list');
+insert into auth.users (id, email, email_confirmed_at) values
+  ('00000000-0000-4000-8000-000000000004', 'former@example.com', now());
+select set_config('request.jwt.claims', :'lookalike', true);
+set local role authenticated;
+select is(public.is_owner(), false, 'a new account with a former owner''s address is not an owner');
 select is((select count(*) from public.reservations), 0::bigint, 'and sees no reservations');
 reset role;
 
 -- An owner ----------------------------------------------------------------------------------
 select set_config('request.jwt.claims', :'owner', true);
 set local role authenticated;
-select is(public.is_owner(), true, 'a listed, confirmed account is an owner (email case is ignored)');
+select is(public.is_owner(), true, 'a listed account is an owner');
 select is((select count(*) from public.reservations), 2::bigint, 'an owner sees every reservation');
 select lives_ok($$ update public.reservations set status = 'confirmed' where email = 'ada@example.com' $$,
   'an owner can confirm a reservation');
@@ -119,6 +138,8 @@ select throws_ok($$ insert into public.photos (path) values ('folder/inner.jpg')
   'a photo path cannot contain folders');
 select throws_ok($$ insert into public.photos (path) values ('first.jpg') $$, '23505', null,
   'the same file cannot be listed twice');
+select throws_ok($$ insert into public.photos (path, width) values ('half.jpg', 1600) $$, '23514', null,
+  'a photo cannot have a width without a height');
 select lives_ok($$ update public.photos set alt = 'Flat white', sort_order = 5 where path = 'first.jpg' $$,
   'an owner can change a description and the order');
 select throws_ok($$ update public.photos set path = 'other.jpg' where path = 'first.jpg' $$, '42501', null,
@@ -129,10 +150,11 @@ select lives_ok($$ insert into storage.objects (bucket_id, name) values ('photos
   'an owner can upload a file to the photos bucket');
 select throws_ok($$ insert into storage.objects (bucket_id, name) values ('elsewhere', 'second.jpg') $$,
   '42501', null, 'an owner cannot upload to another bucket');
-select is((select count(*) from storage.objects), 2::bigint, 'an owner can list the photo files');
+select is((select count(*) from storage.objects), 2::bigint, 'an owner can list the photo files, and only those');
 select lives_ok($$ delete from storage.objects where name = 'second.jpg' $$, 'an owner can delete a file');
+select lives_ok($$ delete from storage.objects where bucket_id = 'elsewhere' $$, 'an owner''s delete in another bucket runs');
 select throws_ok('select * from private.owners', '42501', null, 'an owner cannot read the owner list through the API');
-select throws_ok($$ insert into private.owners (email) values ('friend@example.com') $$, '42501', null,
+select throws_ok($$ insert into private.owners (user_id) values ('00000000-0000-4000-8000-000000000003') $$, '42501', null,
   'an owner cannot add another owner through the API');
 reset role;
 
@@ -142,9 +164,11 @@ select results_eq(
   'the owner''s changes are what was stored');
 select is((select count(*) from storage.objects where bucket_id = 'photos'), 1::bigint,
   'the deleted file is gone');
+select is((select count(*) from storage.objects where bucket_id = 'elsewhere'), 1::bigint,
+  '...but the file in the other bucket was not touched');
 
 -- Removing an owner takes effect straight away -----------------------------------------------
-delete from private.owners where email = 'owner@example.com';
+delete from private.owners where user_id = '00000000-0000-4000-8000-000000000001';
 select set_config('request.jwt.claims', :'owner', true);
 set local role authenticated;
 select is(public.is_owner(), false, 'a removed owner loses access at once');

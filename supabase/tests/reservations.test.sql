@@ -1,4 +1,4 @@
--- pgTAP tests for public.reservations.
+-- pgTAP tests for public.reservations (dinner reservation requests).
 -- Run with `supabase test db`, or `pg_prove -d <database> supabase/tests/reservations.test.sql`.
 -- Everything runs in one transaction that is rolled back, so no data is left behind.
 begin;
@@ -22,35 +22,38 @@ $$;
 
 select (now() at time zone 'Australia/Sydney')::date + 7 as day \gset
 
-select pg_temp.request(:'day', '10:30', 2, 'Ada Lovelace', 'ada@example.com') as ok \gset
-select pg_temp.request(:'day', '11:00', 2, '  Grace   Hopper ', ' GRACE@Example.COM ', ' 0400  000 000 ', '  window seat  ') as messy \gset
-select pg_temp.request(:'day'::date - 8, '10:30', 2, 'Past', 'past@example.com') as past \gset
-select pg_temp.request(:'day'::date + 400, '10:30', 2, 'Far', 'far@example.com') as far \gset
-select pg_temp.request(:'day', '10:07', 2, 'Odd', 'odd@example.com') as odd_time \gset
-select pg_temp.request(:'day', '10:30', 0, 'Zero', 'zero@example.com') as party_zero \gset
-select pg_temp.request(:'day', '10:30', 21, 'Big', 'big@example.com') as party_big \gset
-select pg_temp.request(:'day', '10:30', 2, 'Bad', 'not-an-email') as bad_email \gset
-select pg_temp.request(:'day', '10:30', 2, '   ', 'blank@example.com') as blank_name \gset
-select pg_temp.request(:'day', '10:30', 2, repeat('n', 101), 'long@example.com') as long_name \gset
-select pg_temp.request(:'day', '10:30', 2, 'Phone', 'phone@example.com', 'call me maybe') as bad_phone \gset
-select pg_temp.request(:'day', '10:30', 2, 'Notes', 'notes@example.com', null, repeat('x', 501)) as long_notes \gset
-select pg_temp.request(:'day', '10:30', 0, 'Probe', 'ada@example.com') as probe \gset
-select pg_temp.request(:'day', '09:15', 2, 'Fifth', 'fifth@example.com') as fifth \gset
-select pg_temp.request(:'day', '12:00', 2, 'Another', 'another@example.com') as another \gset
-select pg_temp.request(:'day', '12:15', 2, 'Other net', 'othernet@example.com') as other_net \gset
-select pg_temp.request(:'day', '12:30', 2, 'Garbled', 'garbled@example.com') as garbled_req \gset
-select pg_temp.request(:'day', '12:45', 2, 'No headers', 'noheaders@example.com') as no_headers_req \gset
-select pg_temp.request(:'day', '13:00', 2, 'After cap', 'late@example.com') as after_cap \gset
-select pg_temp.request(:'day', '13:15', 2, 'Tidy', 'tidy@example.com') as tidy \gset
+select pg_temp.request(:'day', '18:30', 2, 'Ada Lovelace', 'ada@example.com') as ok \gset
+select pg_temp.request(:'day', '19:00', 2, '  Grace   Hopper ', ' GRACE@Example.COM ', ' 0400  000 000 ', '  window seat  ') as messy \gset
+select pg_temp.request(:'day'::date - 8, '18:30', 2, 'Past', 'past@example.com') as past \gset
+select pg_temp.request(:'day', '10:30', 2, 'Lunch', 'lunch@example.com') as lunch \gset
+select pg_temp.request(:'day'::date + 400, '18:30', 2, 'Far', 'far@example.com') as far \gset
+select pg_temp.request(:'day', '18:07', 2, 'Odd', 'odd@example.com') as odd_time \gset
+select pg_temp.request(:'day', '18:30', 0, 'Zero', 'zero@example.com') as party_zero \gset
+select pg_temp.request(:'day', '18:30', 21, 'Big', 'big@example.com') as party_big \gset
+select pg_temp.request(:'day', '18:30', 2, 'Bad', 'not-an-email') as bad_email \gset
+select pg_temp.request(:'day', '18:30', 2, '   ', 'blank@example.com') as blank_name \gset
+select pg_temp.request(:'day', '18:30', 2, repeat('n', 101), 'long@example.com') as long_name \gset
+select pg_temp.request(:'day', '18:30', 2, 'Phone', 'phone@example.com', 'call me maybe') as bad_phone \gset
+select pg_temp.request(:'day', '18:30', 2, 'Notes', 'notes@example.com', null, repeat('x', 501)) as long_notes \gset
+select pg_temp.request(:'day', '18:30', 0, 'Probe', 'ada@example.com') as probe \gset
+select pg_temp.request(:'day', '17:15', 2, 'Fifth', 'fifth@example.com') as fifth \gset
+select pg_temp.request(:'day', '20:00', 2, 'Another', 'another@example.com') as another \gset
+select pg_temp.request(:'day', '20:15', 2, 'Other net', 'othernet@example.com') as other_net \gset
+select pg_temp.request(:'day', '20:30', 2, 'Garbled', 'garbled@example.com') as garbled_req \gset
+select pg_temp.request(:'day', '20:45', 2, 'No headers', 'noheaders@example.com') as no_headers_req \gset
+select pg_temp.request(:'day', '21:00', 2, 'After cap', 'late@example.com') as after_cap \gset
+select pg_temp.request(:'day', '21:15', 2, 'Tidy', 'tidy@example.com') as tidy \gset
 
 select pg_temp.visitor('203.0.113.5') as home \gset
 select pg_temp.visitor('203.0.113.5', '198.51.100.99, 203.0.113.5') as home_pretending \gset
+select pg_temp.visitor('::ffff:203.0.113.5') as home_as_v6 \gset
 select pg_temp.visitor('198.51.100.20') as elsewhere \gset
-select pg_temp.visitor('2001:db8:1:2:aaaa::1') as v6_one \gset
-select pg_temp.visitor('2001:db8:1:2:bbbb::2') as v6_same_network \gset
-select pg_temp.visitor('2001:db8:1:3::1') as v6_other_network \gset
+select pg_temp.visitor('2001:db8:1:201:aaaa::1') as v6_one \gset
+select pg_temp.visitor('2001:db8:1:2fe:bbbb::2') as v6_same_network \gset
+select pg_temp.visitor('2001:db8:1:300::1') as v6_other_network \gset
 select pg_temp.visitor('not an address') as garbled \gset
 select pg_temp.visitor('192.0.2.77') as late_visitor \gset
+select pg_temp.visitor('192.0.2.88') as daily_visitor \gset
 
 -- Structure and grants ------------------------------------------------------------------
 select has_table('public', 'reservations', 'reservations table exists');
@@ -91,11 +94,11 @@ select throws_ok('delete from public.reservations', '42501', null, 'a visitor ca
 select throws_ok('truncate public.reservations', '42501', null, 'a visitor cannot truncate');
 select throws_ok(
   format('insert into public.reservations (reservation_date, reservation_time, party_size, name, email, status)
-          values (%L, ''10:45'', 2, ''Sneaky'', ''sneaky@example.com'', ''confirmed'')', :'day'::date),
+          values (%L, ''18:45'', 2, ''Sneaky'', ''sneaky@example.com'', ''confirmed'')', :'day'::date),
   '42501', null, 'a visitor cannot confirm their own request');
 select throws_ok(
   format('insert into public.reservations (reservation_date, reservation_time, party_size, name, email, created_at)
-          values (%L, ''10:45'', 2, ''Sneaky'', ''sneaky@example.com'', ''2020-01-01'')', :'day'::date),
+          values (%L, ''18:45'', 2, ''Sneaky'', ''sneaky@example.com'', ''2020-01-01'')', :'day'::date),
   '42501', null, 'a visitor cannot backdate created_at');
 select throws_ok(
   :'ok' || ' returning id', '42501', null, 'a visitor cannot read a row back with RETURNING');
@@ -103,6 +106,7 @@ select throws_ok('select * from private.reservation_log', '42501', null, 'a visi
 
 select throws_ok(:'past', '42501', null, 'a past date is rejected');
 select throws_ok(:'far', '42501', null, 'a date more than a year ahead is rejected');
+select throws_ok(:'lunch', '42501', null, 'a daytime request is rejected: breakfast and lunch are walk-in only');
 select throws_ok(:'odd_time', '23514', null, 'a time off the quarter hour is rejected');
 select throws_ok(:'party_zero', '23514', null, 'a party of 0 is rejected');
 select throws_ok(:'party_big', '23514', null, 'a party of 21 is rejected');
@@ -135,11 +139,11 @@ select is((select count(*) from public.reservations where email = 'ada@example.c
 set local role anon;
 select lives_ok(
   format($$ insert into public.reservations (id, reservation_date, reservation_time, party_size, name, email)
-            values ('11111111-1111-4111-8111-111111111111', %L, '09:00', 2, 'Retry', 'retry@example.com') $$, :'day'::date),
+            values ('11111111-1111-4111-8111-111111111111', %L, '17:00', 2, 'Retry', 'retry@example.com') $$, :'day'::date),
   'a request carrying its own id is stored');
 select throws_ok(
   format($$ insert into public.reservations (id, reservation_date, reservation_time, party_size, name, email)
-            values ('11111111-1111-4111-8111-111111111111', %L, '09:00', 2, 'Retry', 'retry@example.com') $$, :'day'::date),
+            values ('11111111-1111-4111-8111-111111111111', %L, '17:00', 2, 'Retry', 'retry@example.com') $$, :'day'::date),
   '23505', null, 'sending it again collides on the id instead of storing a duplicate');
 reset role;
 
@@ -148,12 +152,24 @@ reset role;
 set local role anon;
 select lives_ok(:'fifth', 'a fifth request in the hour is accepted');
 select throws_ok(:'another', 'PGRST', null, 'a sixth request in the hour from the same visitor is turned away');
+-- ...but re-sending a request that is already stored still collides on its id, so the form
+-- can tell the guest it was received.
+select throws_ok(
+  format($$ insert into public.reservations (id, reservation_date, reservation_time, party_size, name, email)
+            values ('11111111-1111-4111-8111-111111111111', %L, '17:00', 2, 'Retry', 'retry@example.com') $$, :'day'::date),
+  '23505', null, 'a retry of a stored request is recognised even when the visitor is at the limit');
 reset role;
 
 -- Claiming a different address in x-forwarded-for makes no difference.
 select set_config('request.headers', :'home_pretending', true);
 set local role anon;
 select throws_ok(:'another', 'PGRST', null, 'pretending to be someone else in x-forwarded-for does not help');
+reset role;
+
+-- The same address written in IPv6 form is the same visitor.
+select set_config('request.headers', :'home_as_v6', true);
+set local role anon;
+select throws_ok(:'another', 'PGRST', null, 'an IPv4 address in IPv6 form is the same visitor');
 reset role;
 
 -- Someone else is unaffected.
@@ -163,7 +179,7 @@ select lives_ok(:'another', 'a different visitor is still accepted');
 -- Several rows in one call are counted one by one, and the whole call fails together.
 select throws_ok(
   format('insert into public.reservations (reservation_date, reservation_time, party_size, name, email)
-          select %L::date + n, ''09:30'', 2, ''Bulk'', ''bulk'' || n || ''@example.com'' from generate_series(1, 6) n', :'day'::date),
+          select %L::date + n, ''17:30'', 2, ''Bulk'', ''bulk'' || n || ''@example.com'' from generate_series(1, 6) n', :'day'::date),
   'PGRST', null, 'six requests in a single call are turned away');
 reset role;
 select is((select count(*) from public.reservations where name = 'Bulk'), 0::bigint,
@@ -171,17 +187,17 @@ select is((select count(*) from public.reservations where name = 'Bulk'), 0::big
 select is((select count(*) from private.reservation_log where visitor = '198.51.100.20'), 1::bigint,
   '...or counted');
 
--- IPv6: one home network counts as one visitor, whatever address inside it is used.
+-- IPv6: one household's network (/56) counts as one visitor, whatever address inside it is used.
 select set_config('request.headers', :'v6_one', true);
 set local role anon;
 select lives_ok(
   format('insert into public.reservations (reservation_date, reservation_time, party_size, name, email)
-          select %L::date + n, ''09:45'', 2, ''Six'', ''six'' || n || ''@example.com'' from generate_series(1, 5) n', :'day'::date),
+          select %L::date + n, ''17:45'', 2, ''Six'', ''six'' || n || ''@example.com'' from generate_series(1, 5) n', :'day'::date),
   'five requests from one IPv6 address are accepted');
 reset role;
 select set_config('request.headers', :'v6_same_network', true);
 set local role anon;
-select throws_ok(:'another', 'PGRST', null, 'another address in the same IPv6 network shares that limit');
+select throws_ok(:'another', 'PGRST', null, 'another address in the same IPv6 /56 shares that limit');
 reset role;
 select set_config('request.headers', :'v6_other_network', true);
 set local role anon;
@@ -203,7 +219,7 @@ select is((select count(*) from private.reservation_log where visitor is null), 
 -- The cafe itself is not limited or logged, and can record any booking.
 select lives_ok(
   format('insert into public.reservations (reservation_date, reservation_time, party_size, name, email, status)
-          select %L, ''09:00'', 2, ''Walk-in '' || n, ''guest'' || n || ''@example.com'', ''confirmed''
+          select %L, ''17:00'', 2, ''Walk-in '' || n, ''guest'' || n || ''@example.com'', ''confirmed''
           from generate_series(1, 80) n', :'day'::date - 30),
   'the cafe can add many bookings, including past ones, with any status');
 select is((select count(*) from private.reservation_log), 14::bigint, 'the cafe''s own entries are not counted');
@@ -216,14 +232,53 @@ set local role anon;
 select throws_ok(:'after_cap', 'PGRST', null, 'requests are paused once the hourly total is reached');
 reset role;
 
--- Old log entries are cleared out as new requests arrive.
+-- The hourly windows really are an hour: requests just over an hour old no longer count.
 delete from private.reservation_log;
-insert into private.reservation_log (visitor, at) values ('192.0.2.1', now() - interval '3 days');
+insert into private.reservation_log (visitor, at)
+select '192.0.2.77'::inet, now() - interval '61 minutes' from generate_series(1, 5);
+insert into private.reservation_log (visitor, at)
+select ('10.8.' || n || '.1')::inet, now() - interval '61 minutes' from generate_series(1, 60) n;
+set local role anon;
+select lives_ok(:'after_cap', 'requests from more than an hour ago do not count towards the hourly limits');
+reset role;
+
+-- Per visitor: fifteen a day.
+delete from private.reservation_log;
+insert into private.reservation_log (visitor, at)
+select '192.0.2.88'::inet, now() - interval '2 hours' from generate_series(1, 14);
+insert into private.reservation_log (visitor, at)
+select '192.0.2.88'::inet, now() - interval '25 hours' from generate_series(1, 15);
+select set_config('request.headers', :'daily_visitor', true);
+set local role anon;
+select lives_ok(pg_temp.request(:'day', '21:30', 2, 'Fifteenth', 'fifteenth@example.com'),
+  'a fifteenth request in a day is accepted (older ones no longer count)');
+select throws_ok(pg_temp.request(:'day', '21:45', 2, 'Sixteenth', 'sixteenth@example.com'), 'PGRST', null,
+  'a sixteenth request in a day from the same visitor is turned away');
+reset role;
+
+-- Overall: three hundred a day.
+delete from private.reservation_log;
+insert into private.reservation_log (visitor, at)
+select ('10.' || (n / 250) || '.' || (n % 250) || '.9')::inet, now() - interval '2 hours' from generate_series(1, 299) n;
+set local role anon;
+select lives_ok(pg_temp.request(:'day', '22:00', 2, 'Three hundredth', 'threehundred@example.com'),
+  'the three hundredth request in a day is accepted');
+select throws_ok(pg_temp.request(:'day', '22:15', 2, 'Too many', 'toomany@example.com'), 'PGRST', null,
+  'requests are paused once the daily total is reached');
+reset role;
+
+-- Old log entries are cleared out as new requests arrive; recent ones are kept.
+delete from private.reservation_log;
+insert into private.reservation_log (visitor, at) values
+  ('192.0.2.1', now() - interval '49 hours'),
+  ('192.0.2.2', now() - interval '47 hours');
 set local role anon;
 select lives_ok(:'tidy', 'a request is accepted again once earlier ones have aged out');
 reset role;
-select is((select count(*) from private.reservation_log where at < now() - interval '2 days'), 0::bigint,
-  'log entries older than two days are removed');
+select is((select count(*) from private.reservation_log where visitor = '192.0.2.1'), 0::bigint,
+  'a log entry older than two days is removed');
+select is((select count(*) from private.reservation_log where visitor = '192.0.2.2'), 1::bigint,
+  'a log entry younger than two days is kept');
 
 select * from finish();
 rollback;

@@ -71,6 +71,19 @@
     show("app");
     loadReservations();
     loadPhotos();
+    checkSignUp();
+  }
+
+  // Only owners should have accounts on this project. If anyone can still register one, say
+  // so every time the owner area opens, until it is switched off in Supabase.
+  async function checkSignUp() {
+    try {
+      const res = await fetch(SB.url.replace(/\/+$/, "") + "/auth/v1/settings", { headers: { apikey: SB.publishableKey } });
+      const settings = res.ok ? await res.json() : null;
+      $("signup-warning").hidden = !(settings && settings.disable_signup === false);
+    } catch (err) {
+      // Couldn't check: say nothing rather than warn wrongly.
+    }
   }
 
   // Supabase calls must not run inside this callback, so hand off to the next tick.
@@ -107,12 +120,15 @@
   });
 
   async function signOut() {
+    // signOut() reports a failure in its result rather than throwing. Whatever happens with
+    // the server (offline, an error), the session must be forgotten in this browser.
+    let failed;
     try {
-      await sb.auth.signOut();
+      failed = (await sb.auth.signOut()).error;
     } catch (err) {
-      // Even if the server can't be reached, forget the session in this browser.
-      await sb.auth.signOut({ scope: "local" }).catch(() => {});
+      failed = err;
     }
+    if (failed) await sb.auth.signOut({ scope: "local" }).catch(() => {});
     $("res-list").textContent = "";
     $("photo-list").textContent = "";
   }
@@ -169,16 +185,16 @@
     let subject;
     let lines;
     if (r.status === "confirmed") {
-      subject = "Your table at ellen is confirmed";
+      subject = "Your dinner reservation at ellen is confirmed";
       lines = ["Hi " + first + ",", "", "Your table for " + guests(r.party_size) + " on " + when + " is confirmed. See you then!"];
     } else if (r.status === "declined") {
-      subject = "About your table request at ellen";
+      subject = "About your dinner reservation request at ellen";
       lines = ["Hi " + first + ",", "", "Thanks for asking about a table for " + guests(r.party_size) + " on " + when + ". Sorry, we can't fit you in at that time."];
     } else if (r.status === "cancelled") {
-      subject = "Your table at ellen has been cancelled";
+      subject = "Your dinner reservation at ellen has been cancelled";
       lines = ["Hi " + first + ",", "", "Your table for " + guests(r.party_size) + " on " + when + " has been cancelled."];
     } else {
-      subject = "About your table request at ellen";
+      subject = "About your dinner reservation request at ellen";
       lines = ["Hi " + first + ",", "", "Thanks for your request for a table for " + guests(r.party_size) + " on " + when + "."];
     }
     return (
