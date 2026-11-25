@@ -171,15 +171,83 @@
       .then(() => {
         settled = true;
         tell();
+        calm();
       });
   }
   // Read the dates again (after the server has refused a request, say). Resolves when done.
   const refreshDinner = () => (hasBackend ? loadDinner() : Promise.resolve());
   if (hasBackend) loadDinner();
 
+  // ---------------------------------------------------------------- menus: reading
+
+  // The lunch and dinner menus are edited in the owner area (admin.html) and read from
+  // Supabase. As with the dinner dates, the last answer is remembered in this browser, so a
+  // returning visitor sees a menu at once. The database hands out the dinner menu only while
+  // a dinner date is coming up.
+  const MENUS_KEY = "ellen.menus";
+  const MENU_LIMITS = { sections: 12, items: 40, title: 40, name: 80, desc: 200, price: 24, note: 200 };
+  const oneLine = (v, max) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim().slice(0, max) : "");
+
+  // One menu in its tidy form: { note, sections: [{ title, items: [{ name, desc, price }] }] },
+  // keys always in this order and every value a string ("" for none). Dishes without a name
+  // are dropped, and so are sections left with none (the editor keeps those that have a
+  // heading). Menus are only ever compared in this form: the database does not keep key order.
+  function tidyMenu(row, keepEmptySections) {
+    const out = { note: "", sections: [] };
+    if (!row || typeof row !== "object") return out;
+    out.note = oneLine(row.note, MENU_LIMITS.note);
+    if (!Array.isArray(row.sections)) return out;
+    row.sections.forEach((sec) => {
+      if (!sec || typeof sec !== "object" || out.sections.length >= MENU_LIMITS.sections) return;
+      const title = oneLine(sec.title, MENU_LIMITS.title);
+      const items = (Array.isArray(sec.items) ? sec.items : [])
+        .filter((i) => i && typeof i === "object" && oneLine(i.name, MENU_LIMITS.name))
+        .slice(0, MENU_LIMITS.items)
+        .map((i) => ({
+          name: oneLine(i.name, MENU_LIMITS.name),
+          desc: oneLine(i.desc, MENU_LIMITS.desc),
+          price: oneLine(i.price, MENU_LIMITS.price),
+        }));
+      if (items.length || (keepEmptySections && title)) out.sections.push({ title, items });
+    });
+    return out;
+  }
+  // Rows as the API returns them -> { lunch, dinner }. A row that was not sent is an empty menu.
+  function menusFrom(rows) {
+    const find = (kind) => tidyMenu(rows.find((r) => r && r.kind === kind));
+    return { lunch: find("lunch"), dinner: find("dinner") };
+  }
+  function rememberedMenus() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(MENUS_KEY));
+      return saved && Array.isArray(saved.rows) ? menusFrom(saved.rows) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  async function fetchMenus() {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(base + "/rest/v1/menus?select=kind,note,sections", {
+        headers: { apikey: SB.publishableKey },
+        signal: ctrl.signal,
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const rows = await res.json();
+      if (!Array.isArray(rows)) throw new Error("not a list");
+      try {
+        localStorage.setItem(MENUS_KEY, JSON.stringify({ rows }));
+      } catch (e) { /* private browsing: nothing to keep */ }
+      return menusFrom(rows);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   window.CAFE_UTIL = {
     fmtTime, toMin, asUTC, addDays, weekdayOf, fmtDate, shortDate, cafeNow, DAYS,
-    onDinner, refreshDinner, slots, dinnerNow,
+    onDinner, refreshDinner, slots, dinnerNow, tidyMenu, MENU_LIMITS, MENUS_KEY,
   };
 
   // ---------------------------------------------------------------- text from the config
@@ -257,17 +325,28 @@
   const fromTime = (d) => "from " + fmtTime((d.date === cafeNow().date && slots(d)[0]) || d.first);
   let heroLeads = false; // "reserve" leads the hero actions (the page starts without it)
   let datesShown = null; // what the list of dinner dates was last drawn from
+  let lastDates = []; // the dates showDinner last ran with
   function showDinner(dates) {
+    lastDates = dates;
     const { listed, open, tonight } = dinnerNow(dates);
     const today = cafeNow().date;
     const next = open[0] || null;
 
     showStatus(tonight);
 
-    // "reserve" appears only while something can be reserved; the walk-in sign-off only while
-    // there is no dinner to speak of.
+    // "reserve" appears only while something can be reserved; the dinner menu while an
+    // evening is listed and the menu has dishes; the walk-in sign-off only while there is no
+    // dinner to speak of.
+    const dinnerMenuOn = listed.length > 0 && Boolean(menus && menus.dinner.sections.length);
     document.querySelectorAll("[data-if]").forEach((n) => {
-      n.hidden = n.dataset.if === "dinner" ? !open.length : listed.length > 0;
+      const kind = n.dataset.if;
+      const hide = kind === "dinner" ? !open.length : kind === "dinner-menu" ? !dinnerMenuOn : listed.length > 0;
+      if (n.hidden === hide) return;
+      // The dinner menu sits above "visit": someone reading there must not be moved.
+      const section = n.closest("#dinner-menu");
+      if (section) keepPlace(section, () => (n.hidden = hide));
+      else n.hidden = hide;
+      if (n.id === "dinner-menu" && !hide) arriveAtDinnerMenu();
     });
     const closing = $("closing");
     if (closing) closing.hidden = !open.length && listed.length > 0;
@@ -327,21 +406,35 @@
     showToday();
   }
 
-  // ---------------------------------------------------------------- menu
+  // ---------------------------------------------------------------- menus: drawing
 
-  const menu = $("menu-list");
-  if (!C.menu.length) {
-    // No menu published yet: hide the section and its links rather than show an empty heading.
-    if (menu) $("menu").hidden = true;
-    document.querySelectorAll('a[href$="#menu"]').forEach((a) => {
-      (a.parentElement.tagName === "LI" ? a.parentElement : a).hidden = true;
-    });
-  } else if (menu) {
-    C.menu.forEach((group) => {
+  // "menu" is the lunch menu and is always there. "dinner menu" follows it only while dinner
+  // is listed and has dishes, so the lunch menu never moves when dinner comes or goes.
+  const wantsMenus = Boolean($("menu-list") || document.querySelector('[data-if="dinner-menu"]'));
+  let menus = null; // { lunch, dinner } as last known; null until something is known
+  let menusSettled = false; // the request has been answered, or has failed
+  const drawn = { lunch: null, dinner: null }; // what each list was last drawn from
+
+  // Run a change to a section's height without moving anyone who is reading below it. Some
+  // browsers hold the reader's place themselves; this does it for the ones that do not.
+  function keepPlace(section, change) {
+    let next = section ? section.nextElementSibling : null;
+    while (next && (next.tagName !== "SECTION" || next.hidden)) next = next.nextElementSibling;
+    if (!next) return change();
+    const before = next.getBoundingClientRect().top;
+    change();
+    if (before > 64) return; // the reader is at or above what changed
+    const moved = next.getBoundingClientRect().top - before;
+    if (moved) window.scrollBy({ top: moved, behavior: "instant" });
+  }
+
+  function drawMenu(list, note, menu) {
+    list.textContent = "";
+    menu.sections.forEach((sec) => {
       const box = el("div");
-      box.append(el("h3", group.title));
+      if (sec.title) box.append(el("h3", sec.title));
       const ul = el("ul");
-      group.items.forEach((item) => {
+      sec.items.forEach((item) => {
         const li = el("li");
         const row = el("span", null, "row");
         row.append(el("span", item.name));
@@ -351,8 +444,81 @@
         ul.append(li);
       });
       box.append(ul);
-      menu.append(box);
+      list.append(box);
     });
+    note.textContent = menu.note;
+    note.hidden = !menu.note || !menu.sections.length;
+  }
+
+  // Draw what is known. A menu is redrawn only when it differs from what is on the page.
+  function showMenus() {
+    const lunchList = $("menu-list");
+    if (lunchList && menus) {
+      const sig = JSON.stringify(menus.lunch);
+      if (sig !== drawn.lunch) {
+        drawn.lunch = sig;
+        keepPlace($("menu"), () => {
+          drawMenu(lunchList, $("menu-note"), menus.lunch);
+          $("menu-wait").textContent = "";
+          $("menu-none").hidden = menus.lunch.sections.length > 0;
+        });
+      }
+    } else if (lunchList && menusSettled && drawn.lunch !== "none") {
+      // It could not be read and none is remembered: point to where the menu can be seen.
+      drawn.lunch = "none";
+      keepPlace($("menu"), () => {
+        $("menu-wait").textContent = "";
+        $("menu-none").hidden = false;
+      });
+    }
+    const dinnerList = $("dinner-menu-list");
+    if (dinnerList && menus) {
+      const sig = JSON.stringify(menus.dinner);
+      if (sig !== drawn.dinner) {
+        drawn.dinner = sig;
+        keepPlace($("dinner-menu"), () => drawMenu(dinnerList, $("dinner-menu-note"), menus.dinner));
+      }
+    }
+    showDinner(lastDates); // shows or hides the dinner menu and the links to it
+  }
+
+  // A link straight to the dinner menu (from the reservation form) on a first visit: the
+  // section did not exist when the browser looked for it, so go there when it appears.
+  let arrived = false;
+  function arriveAtDinnerMenu() {
+    if (arrived || window.location.hash !== "#dinner-menu") return;
+    arrived = true;
+    if (window.scrollY === 0) $("dinner-menu").scrollIntoView({ behavior: "instant" });
+  }
+
+  function startMenus() {
+    if (!wantsMenus) return;
+    const none = $("menu-none-link");
+    if (none) none.href = C.instagram;
+    if (!hasBackend) {
+      menusSettled = true;
+      showMenus();
+      return calm();
+    }
+    menus = rememberedMenus();
+    if (menus) showMenus();
+    else {
+      // A first visit: say nothing for a moment, then that it is on its way.
+      setTimeout(() => {
+        const wait = $("menu-wait");
+        if (wait && !menus && !menusSettled) keepPlace($("menu"), () => (wait.textContent = "Loading…"));
+      }, 600);
+    }
+    fetchMenus()
+      .then((fresh) => {
+        menus = fresh;
+      })
+      .catch(() => {}) // the remembered menus stand; with none, the page says where to look
+      .then(() => {
+        menusSettled = true;
+        showMenus();
+        calm();
+      });
   }
 
   // ---------------------------------------------------------------- photos
@@ -360,6 +526,7 @@
   // Photos the owner has uploaded (see admin.html). The section stays hidden if there are
   // none, or if they cannot be fetched.
   const gallery = $("gallery-list");
+  let photosSettled = !(gallery && hasBackend);
   if (gallery && hasBackend) {
     fetch(base + "/rest/v1/photos?select=path,alt,width,height&order=sort_order.asc,created_at.asc&limit=12", {
       headers: { apikey: SB.publishableKey },
@@ -382,18 +549,25 @@
           if (!img.alt) li.setAttribute("aria-hidden", "true");
           // A photo that fails to load is dropped rather than left as a broken frame.
           img.addEventListener("error", () => {
-            li.remove();
-            if (!gallery.children.length) $("gallery").hidden = true;
+            keepPlace($("gallery"), () => {
+              li.remove();
+              if (!gallery.children.length) $("gallery").hidden = true;
+            });
             tidyGallery();
           });
           img.src = base + "/storage/v1/object/public/photos/" + encodeURIComponent(p.path);
           li.append(img);
           gallery.append(li);
         });
-        if (gallery.children.length) $("gallery").hidden = false;
+        // The strip arrives late and sits above the menus: do not push a reader down by its height.
+        if (gallery.children.length) keepPlace($("gallery"), () => ($("gallery").hidden = false));
         tidyGallery();
       })
-      .catch(() => {});
+      .catch(() => {})
+      .then(() => {
+        photosSettled = true;
+        calm();
+      });
     window.addEventListener("resize", tidyGallery);
   }
   // On a phone the photos are one row to swipe; the row takes keyboard focus only where it
@@ -451,7 +625,16 @@
 
   // ---------------------------------------------------------------- keep it current
 
+  // Links to a section scroll smoothly (styles.css, html.settled), but only once everything
+  // that arrives late is in. Before that the browser's jump to "#visit" must be instant: a
+  // smooth scroll still under way when the menus or photos land would end in the wrong place.
+  function calm() {
+    if (settled && (menusSettled || !wantsMenus) && photosSettled) document.documentElement.classList.add("settled");
+  }
+
   onDinner(showDinner);
   if (!known && !settled) showDinner([]); // nothing remembered: start from the walk-in page
+  startMenus();
+  calm();
   setInterval(tell, 60000);
 })();

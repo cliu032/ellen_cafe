@@ -18,11 +18,11 @@
   <link rel="preconnect" href="https://qgibakqqtmfbbafclnfo.supabase.co" crossorigin>
   <link rel="preload" href="assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/styles.css?v=7">
+  <link rel="stylesheet" href="assets/styles.css?v=8">
   <!-- With scripts on, hold back the static walk-in message until the page knows what to show.
        If the page script has not started after a few seconds, give the static message back,
        with a line saying the page did not finish loading. -->
-  <script>document.documentElement.className="js";setTimeout(function(){if(!window.RESERVE_STARTED)document.documentElement.className="stalled"},4000);</script>
+  <script>document.documentElement.classList.add("js");setTimeout(function(){if(!window.RESERVE_STARTED){document.documentElement.classList.remove("js");document.documentElement.classList.add("stalled")}},4000);</script>
 </head>
 <body>
   <div class="wrap">
@@ -70,7 +70,10 @@
       </div>
 
       <div id="form-view" hidden>
-        <p class="label">reservations</p>
+        <div class="label-row">
+          <p class="label">reservations</p>
+          <p data-if="dinner-menu" hidden><a class="link" href="index.html#dinner-menu" data-cafe="dinnerMenuTitle"></a></p>
+        </div>
         <h1 data-cafe="reserveTitle"></h1>
         <p class="lede" data-cafe="reserveIntro"></p>
         <p class="record" data-record hidden></p>
@@ -151,8 +154,8 @@
       <a class="link" id="ig" href="https://www.instagram.com/ellen_cafe/" target="_blank" rel="noopener">instagram @ellen_cafe</a>
     </footer>
   </div>
-  <script src="assets/config.js?v=7"></script>
-  <script src="assets/site.js?v=7"></script>
-  <script src="assets/reserve.js?v=7"></script>
+  <script src="assets/config.js?v=8"></script>
+  <script src="assets/site.js?v=8"></script>
+  <script src="assets/reserve.js?v=8"></script>
 </body>
 </html>

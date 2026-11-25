@@ -1,13 +1,14 @@
 # ellen cafe & eatery
 
 Website for ellen cafe & eatery (153/18 Huntley St, Alexandria NSW). Plain HTML, CSS and
-JavaScript with no build step, backed by a Supabase project for reservations and photos.
+JavaScript with no build step, backed by a Supabase project for reservations, dinner dates,
+menus and photos.
 
 | Page | What it is |
 | --- | --- |
-| `index.html` | Landing page: wordmark, open-now line, photos, menu, address and hours |
+| `index.html` | Landing page: wordmark, open-now line, photos, the menu (and the dinner menu), address and hours |
 | `reserve.html` | Dinner reservations (a walk-in message while no dinner dates are set) |
-| `admin.html` | Owner area: answer reservation requests, pick dinner dates, manage the photos |
+| `admin.html` | Owner area: answer reservation requests, pick dinner dates, manage the photos, edit the menus |
 
 The look follows the café's logo: cream ground, rust-brown lowercase sans-serif, and the
 "caf·elle·atery·n" wordmark as the hero. The font (Inter) is served from `assets/fonts/`, so
@@ -22,6 +23,10 @@ the public pages load nothing from other sites except the dinner dates and photo
   site takes no reservations and does not mention dinner: the "reserve" links are hidden and
   `reserve.html` says "walk-in only". As soon as a date is added they appear, and the form
   offers exactly the dates and times the owner chose.
+- **Two menus, edited by the owner.** "menu" on the home page is the lunch menu (breakfast
+  lives in it too) and is always shown. The dinner menu appears below it only while a dinner
+  date is listed and the menu has dishes, so the site never shows a dinner menu when no dinner
+  is on offer. Both are edited in the owner area and stored in Supabase.
 - **The site follows the clock.** The line under the wordmark says whether the café is open
   ("Open until 2:30pm", "Closed · dinner from 5:30pm"). When tonight's last bookable time has
   passed, tonight drops off the form, and the "reserve" links go once no evening is left.
@@ -52,16 +57,16 @@ Then open http://localhost:8000. The pages talk to the live Supabase project nam
 
 ## Edit the content
 
-Café details — the short lines of text, address, email, opening hours, menu — live in
-`assets/config.js`. Lines marked `CHECK` come from public sources and should be confirmed. The
-menu section stays hidden while `menu` is empty.
+Café details — the short lines of text, address, email, opening hours — live in
+`assets/config.js`. Lines marked `CHECK` come from public sources and should be confirmed.
+The menus and the photos are not in the code: the owner changes them in the owner area.
 
 - `hoursConfirmed`: while `true` the site states exact opening times and an "open now" line.
   Set it to `false` to show only "Tuesday to Sunday" until the times have been confirmed.
 - The address, email and "Tuesday to Sunday" are also written into `index.html` and
   `reserve.html` themselves, so they show even if JavaScript does not run. If any of those
   change, change them in both places.
-- The pages load their files as `styles.css?v=7`, `site.js?v=7` and so on. After changing a
+- The pages load their files as `styles.css?v=8`, `site.js?v=8` and so on. After changing a
   file in `assets/`, raise that number in the three HTML files so returning visitors get the
   new version straight away.
 - Link previews (`og:url`, `og:image` in each page's `<head>`) use the full
@@ -105,6 +110,18 @@ Open `admin.html` and sign in.
   before upload), describe them, reorder them, delete them. The first 12 appear on the
   landing page. A deleted photo leaves the page at once; its direct address can keep working
   for up to an hour.
+- **Menu**: pick **lunch** or **dinner**. The menu is drawn as guests see it; select a dish, a
+  heading or the note to change it, use "add item" and "add section", and "up", "down" and
+  "remove" inside an open row. Nothing reaches the site until **save**.
+  - Changes that are not saved yet are kept in that browser, so a reload, a locked phone or
+    signing out does not lose them. They are not on your other devices.
+  - If the same menu was saved somewhere else in the meantime, save is held back and you
+    choose: "load latest" (drop your changes) or "save mine" (replace the other ones). There
+    is no history, so the replaced version cannot be brought back.
+  - The dinner menu can be prepared at any time. Guests see it only while a dinner date is
+    listed; the dinner tab reminds you of this when you add a date.
+  - If the lunch menu is empty, or cannot be loaded by a first-time visitor, the home page
+    says "For the menu, see Instagram."
 
 ### Giving someone access
 
@@ -142,15 +159,16 @@ into the dashboard's SQL Editor.
 | --- | --- |
 | `public.reservations` | Dinner reservation requests |
 | `public.dinner_services` | The evenings dinner is served, with first and last seating |
+| `public.menus` | The lunch and dinner menus, one row each: a note and a list of sections with their dishes |
 | `public.photos` | Which uploaded photos appear on the site, in what order, with what description |
 | Storage bucket `photos` | The image files (public) |
 | `private.owners` | Accounts allowed into the owner area |
 | `private.reservation_log` | Recent request times and visitor addresses, for rate limiting |
 
 The Supabase URL and publishable key in `assets/config.js` are meant to be public. With them
-the website can add a reservation request and read the dinner dates and the photo list, and
-nothing else; that is
-decided by the row level security policies in the migrations, not by keeping the key secret.
+the website can add a reservation request and read the dinner dates, the menus and the photo
+list, and nothing else; that is decided by the row level security policies in the migrations,
+not by keeping the key secret.
 Never put a secret (`sb_secret_…`) or `service_role` key in this repository.
 
 ## Deploy
@@ -166,3 +184,4 @@ Build and deployment → Source: GitHub Actions.
 - **Bot protection.** The rate limits cap abuse but there is no CAPTCHA; someone with many
   network addresses could still fill the hourly allowance and make real guests wait.
 - **Availability.** The form does not know how full dinner is; every request is a request.
+- **Menu history.** A save replaces the menu that was there; earlier versions are not kept.

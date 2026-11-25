@@ -13,18 +13,22 @@
 .textbtn[disabled], .btn.small[disabled] { opacity: .4; pointer-events: none; }
 .textbtn.danger { color: var(--error); }
 
-.tabs { display: flex; gap: clamp(12px, 4.5vw, 28px); border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.tabs { display: flex; flex-wrap: wrap; gap: clamp(9px, 3vw, 28px); border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 .tabs [role="tab"] {
-  border: 0; background: none; cursor: pointer; padding: 0 0 12px; margin-bottom: -1px;
-  font: 700 clamp(1.0625rem, 5.3vw, 1.875rem)/1 var(--sans); letter-spacing: -.035em; color: var(--muted);
+  position: relative; flex: none; white-space: nowrap; min-height: 44px;
+  border: 0; background: none; cursor: pointer; padding: 14px 0 12px; margin-bottom: -1px;
+  font: 700 clamp(.875rem, 4.4vw, 1.875rem)/1 var(--sans); letter-spacing: -.035em; color: var(--muted);
   border-bottom: 2px solid transparent;
 }
 .tabs [role="tab"][aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
 .badge {
-  display: inline-block; min-width: 22px; padding: 3px 7px; margin-left: 4px; border-radius: 999px;
-  background: var(--accent); color: var(--bg); font: 500 .75rem/1.3 var(--sans); letter-spacing: 0;
+  display: inline-block; min-width: 20px; padding: 2px 6px; border-radius: 999px;
+  background: var(--accent); color: var(--bg); font: 500 .6875rem/1.3 var(--sans); letter-spacing: 0;
   text-align: center; vertical-align: middle;
 }
+/* A small dot: "this has changes that are not saved". Its meaning is also in hidden text. */
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+.tabs .dot { position: absolute; top: 9px; right: -8px; background: var(--accent); }
 .refresh { float: right; margin: 0; }
 .notice { min-height: 1.7em; margin: 0 0 8px; font-size: .8125rem; color: var(--muted); }
 .notice.bad { color: var(--error); }
@@ -98,4 +102,87 @@
 @media (max-width: 720px) {
   .dinner-list li { grid-template-columns: 1fr 1fr; }
   .dinner-list .when, .dinner-list .textbtn { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* menu editor */
+.m-pick { border: 0; margin: 4px 0 0; padding: 0; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 360px; }
+.m-pick label { position: relative; display: block; }
+.m-pick input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.m-pick label > span { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border: 1px solid var(--edge); background: var(--paper); font-size: .9375rem; line-height: 1.2; }
+.m-pick input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 500; }
+.m-pick input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.m-status { margin: 14px 0 0; max-width: 640px; }
+.m-status.bad, #dinner-menu-hint.bad { color: var(--error); }
+.m-status a.link { margin-left: 6px; color: var(--ink); }
+#dinner-menu-hint .textbtn { margin-left: 6px; color: var(--ink); }
+.m-help { margin: 4px 0 0; }
+.m-list { max-width: 640px; margin-top: 20px; }
+.m-list[aria-busy="true"] { opacity: .6; }
+/* A row of the menu, drawn as guests see it. The whole row is one button. */
+.m-row {
+  display: flex; width: 100%; justify-content: space-between; gap: 12px; border: 0; border-bottom: 1px solid var(--line); background: none; cursor: pointer;
+  text-align: left; color: var(--ink); font: 400 .9375rem/1.5 var(--sans); padding: 0; min-height: 52px;
+}
+.m-row .m-text { flex: 1; min-width: 0; padding: 12px 0; overflow-wrap: anywhere; }
+.m-row .m-desc { display: block; color: var(--muted); font-size: .8125rem; line-height: 1.5; margin-top: 2px; }
+.m-row .m-side { flex: none; min-width: 72px; max-width: 45%; padding: 12px 0 12px 12px; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.m-row .m-k { display: block; font-size: .75rem; letter-spacing: .04em; color: var(--muted); }
+.m-row .m-add-note { color: var(--accent); border-bottom: 1px solid currentColor; }
+.m-note-row { border-top: 1px solid var(--line); }
+.m-sec { margin-top: 28px; }
+.m-sec h2 { font: inherit; color: inherit; letter-spacing: 0; text-transform: none; margin: 0; }
+.m-head { border-bottom-color: var(--ink); font-weight: 700; font-size: 1.0625rem; letter-spacing: -.01em; }
+.m-head .m-text, .m-edit .m-title { text-transform: lowercase; }
+.m-head .m-none { font-weight: 400; font-size: .9375rem; letter-spacing: 0; color: var(--muted); text-transform: none; }
+.m-items { list-style: none; margin: 0; padding: 0; }
+.m-add { display: block; width: 100%; min-height: 48px; border: 0; background: none; cursor: pointer; text-align: left; padding: 0; color: var(--accent); font: 500 .875rem/1.4 var(--sans); }
+.m-add span { border-bottom: 1px solid currentColor; padding-bottom: 1px; }
+.m-add.m-add-sec { margin-top: 20px; border-top: 1px solid var(--ink); min-height: 60px; }
+.m-list .hint { margin: 12px 0; }
+/* The open row: a small form in its place. */
+.m-edit { background: var(--paper); border: 1px solid var(--ink); padding: 14px; margin: 8px 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.m-edit textarea { min-height: 48px; resize: none; overflow: hidden; }
+.m-edit .m-price { max-width: 160px; }
+.m-edit .hint { margin: 0; }
+.m-count { font-size: .8125rem; color: var(--muted); margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.m-count:empty { display: none; }
+.m-acts { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 4px; }
+.m-acts .btn { min-width: 100px; min-height: 48px; padding: 0 22px; }
+.m-move { display: flex; gap: 8px; }
+.m-move button { width: 56px; min-height: 48px; border: 1px solid var(--edge); background: var(--paper); color: var(--ink); cursor: pointer; font: 400 .875rem/1 var(--sans); }
+.m-move button[disabled] { opacity: .4; cursor: default; }
+.m-last { border-top: 1px solid var(--line); padding-top: 14px; min-height: 44px; display: flex; align-items: center; }
+/* The save bar: there only when there is something to say, at the bottom of the screen while
+   the list is longer than it. */
+.m-bar {
+  position: sticky; bottom: 0; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+  margin: 28px -24px 0; padding: 12px 24px calc(12px + env(safe-area-inset-bottom)); background: var(--accent); color: var(--bg);
+}
+.m-bar[hidden] { display: none; }
+.m-bar p { margin: 0; flex: 1 1 auto; font-size: .875rem; line-height: 1.4; font-weight: 500; max-width: none; }
+.m-bar-acts { display: flex; align-items: center; gap: 20px; flex: none; margin-left: auto; min-height: 48px; }
+.m-bar-acts:empty { display: none; }
+.m-bar .textbtn { color: inherit; }
+.m-bar .m-save, .m-bar .m-alt {
+  flex: none; min-width: 112px; min-height: 48px; padding: 0 20px; border: 1px solid var(--bg); border-radius: 999px;
+  background: var(--bg); color: var(--accent); cursor: pointer; font: 500 .9375rem/1 var(--sans);
+}
+.m-bar .m-alt { background: transparent; color: var(--bg); }
+.m-bar .m-save[aria-disabled="true"] { opacity: .6; cursor: progress; }
+.m-bar :focus-visible { outline-color: var(--bg); }
+.m-bar [hidden] { display: none; }
+@media (max-width: 720px) {
+  .m-bar.two .m-bar-acts { flex: 1 1 100%; gap: 12px; }
+  .m-bar.two .m-bar-acts button { flex: 1 1 0; min-width: 0; padding: 0 8px; }
+}
+@media (min-width: 721px) { .m-bar { margin: 28px 0 0; max-width: 640px; padding: 12px 20px; } }
+/* While the bar shows, keep a focused row clear of it. */
+html.m-bar-on { scroll-padding-bottom: 140px; }
+@media (hover: hover) { .m-row:hover { background: var(--paper); } }
+@media (forced-colors: active) {
+  .m-pick input:checked + span { forced-color-adjust: none; background: Highlight; border-color: Highlight; color: HighlightText; }
+  /* The "not saved" dot and the bar are drawn with grounds, which contrast themes replace. */
+  .dot, .tabs .dot { forced-color-adjust: none; background: CanvasText; }
+  .m-pick input:checked + span .dot { background: HighlightText; }
+  .m-bar { border-top: 1px solid CanvasText; }
 }

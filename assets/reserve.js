@@ -695,5 +695,6 @@
   // Tells the script in the page head that this one is up and running. Set last: if anything
   // above failed, the head script gives the page's plain message back after a few seconds.
   window.RESERVE_STARTED = true;
-  document.documentElement.className = "js";
+  document.documentElement.classList.remove("stalled");
+  document.documentElement.classList.add("js");
 })();

@@ -11,8 +11,8 @@
   <meta name="theme-color" content="#f3efe4">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
   <meta name="color-scheme" content="only light">
-  <link rel="stylesheet" href="assets/styles.css?v=7">
-  <link rel="stylesheet" href="assets/admin.css?v=7">
+  <link rel="stylesheet" href="assets/styles.css?v=8">
+  <link rel="stylesheet" href="assets/admin.css?v=8">
 </head>
 <body>
   <div class="wrap">
@@ -67,6 +67,7 @@
           <button type="button" role="tab" id="tab-reservations" aria-controls="panel-reservations" aria-selected="true">reservations <span class="badge" id="pending-badge" hidden></span></button>
           <button type="button" role="tab" id="tab-dinner" aria-controls="panel-dinner" aria-selected="false" tabindex="-1">dinner</button>
           <button type="button" role="tab" id="tab-photos" aria-controls="panel-photos" aria-selected="false" tabindex="-1">photos</button>
+          <button type="button" role="tab" id="tab-menu" aria-controls="panel-menu" aria-selected="false" tabindex="-1">menu<span class="dot" id="m-tab-dot" hidden><span class="sr-only">, not saved</span></span></button>
         </div>
         <p class="refresh"><button class="textbtn" type="button" id="res-refresh">refresh</button></p>
         <p class="notice" id="notice" role="status"></p>
@@ -88,6 +89,7 @@
 
         <div id="panel-dinner" role="tabpanel" aria-labelledby="tab-dinner" tabindex="0" hidden>
           <p class="hint">Dinner runs only on the dates you pick. Guests reserve between the first and last seating.</p>
+          <p class="hint" id="dinner-menu-hint" hidden></p>
           <div class="toolbar">
             <div class="field">
               <label for="dinner-first">First seating</label>
@@ -115,6 +117,32 @@
           <p class="hint">Shown on the home page in this order. Describe each photo for screen readers.</p>
           <ul class="photo-list" id="photo-list"></ul>
         </div>
+
+        <!-- The lunch and dinner menus. Every id in this panel starts with "m-": assets/site.js
+             also runs on this page and uses the ids of the home page's own menu. -->
+        <div id="panel-menu" role="tabpanel" aria-labelledby="tab-menu" tabindex="0" hidden>
+          <p class="hint" id="m-wait">Loading…</p>
+          <div id="m-body" hidden>
+            <fieldset class="m-pick">
+              <legend class="sr-only">Menu</legend>
+              <label><input type="radio" name="m-kind" value="lunch" checked><span>lunch<span class="dot" id="m-dot-lunch" hidden><span class="sr-only">, not saved</span></span></span></label>
+              <label><input type="radio" name="m-kind" value="dinner"><span>dinner<span class="dot" id="m-dot-dinner" hidden><span class="sr-only">, not saved</span></span></span></label>
+            </fieldset>
+            <p class="hint m-status" id="m-status"></p>
+            <p class="hint m-help" id="m-help">Select a dish, a heading or the note to change it.</p>
+            <div class="m-list" id="m-list-lunch"></div>
+            <div class="m-list" id="m-list-dinner" hidden></div>
+            <div class="m-bar" id="m-bar" role="group" aria-labelledby="m-bar-text" hidden>
+              <p id="m-bar-text"></p>
+              <div class="m-bar-acts" id="m-bar-acts">
+                <button type="button" class="textbtn" id="m-discard">discard</button>
+                <button type="button" class="m-alt" id="m-latest" hidden>load latest</button>
+                <button type="button" class="m-save" id="m-save">save</button>
+              </div>
+            </div>
+            <p class="sr-only" role="status" id="m-live"></p>
+          </div>
+        </div>
       </section>
     </main>
 
@@ -123,9 +151,9 @@
       <a class="link" id="ig" href="https://www.instagram.com/ellen_cafe/" target="_blank" rel="noopener">instagram @ellen_cafe</a>
     </footer>
   </div>
-  <script src="assets/config.js?v=7"></script>
-  <script src="assets/site.js?v=7"></script>
+  <script src="assets/config.js?v=8"></script>
+  <script src="assets/site.js?v=8"></script>
   <script src="assets/vendor/supabase-2.119.0.js"></script>
-  <script src="assets/admin.js?v=7"></script>
+  <script src="assets/admin.js?v=8"></script>
 </body>
 </html>

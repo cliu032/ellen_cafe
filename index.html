@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://qgibakqqtmfbbafclnfo.supabase.co" crossorigin>
   <link rel="preload" href="assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/styles.css?v=7">
+  <link rel="stylesheet" href="assets/styles.css?v=8">
   <noscript><style>.status[hidden]{display:none!important}</style></noscript>
 </head>
 <body>
@@ -54,11 +54,29 @@
 
       <section id="menu" aria-labelledby="menu-h">
         <div class="split">
-          <h2 id="menu-h">menu</h2>
+          <div class="menu-head">
+            <h2 id="menu-h">menu</h2>
+            <p data-if="dinner-menu" hidden><a class="link" href="#dinner-menu" data-cafe="dinnerMenuTitle"></a></p>
+          </div>
           <div>
-            <p class="note menu-note" data-cafe="menuNote"></p>
+            <p class="note menu-note" id="menu-note" hidden></p>
             <div class="menu" id="menu-list"></div>
+            <p class="hint" id="menu-wait"></p>
+            <p class="note menu-note" id="menu-none" hidden>For the menu, see <a class="link" id="menu-none-link" href="https://www.instagram.com/ellen_cafe/" target="_blank" rel="noopener">Instagram</a>.</p>
             <noscript><p class="note menu-note">For the menu, see <a class="link" href="https://www.instagram.com/ellen_cafe/">Instagram</a>.</p></noscript>
+          </div>
+        </div>
+      </section>
+
+      <!-- The evening menu: only while dinner dates are listed and it has dishes. Its wording
+           comes from assets/config.js, so the page carries none of it otherwise. -->
+      <section id="dinner-menu" aria-labelledby="dinner-menu-h" data-if="dinner-menu" hidden>
+        <div class="split">
+          <h2 id="dinner-menu-h" data-cafe="dinnerMenuTitle"></h2>
+          <div>
+            <p class="note menu-note" id="dinner-menu-note" hidden></p>
+            <div class="menu" id="dinner-menu-list"></div>
+            <p class="menu-after" data-if="dinner" hidden><a class="link" href="reserve.html">reserve</a></p>
           </div>
         </div>
       </section>
@@ -108,7 +126,7 @@
       <a class="link" id="ig" href="https://www.instagram.com/ellen_cafe/" target="_blank" rel="noopener">instagram @ellen_cafe</a>
     </footer>
   </div>
-  <script src="assets/config.js?v=7"></script>
-  <script src="assets/site.js?v=7"></script>
+  <script src="assets/config.js?v=8"></script>
+  <script src="assets/site.js?v=8"></script>
 </body>
 </html>
