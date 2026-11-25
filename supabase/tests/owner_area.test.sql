@@ -34,6 +34,9 @@ insert into public.reservations (reservation_date, reservation_time, party_size,
 values (:'day', '10:30', 2, 'Ada Lovelace', 'ada@example.com'),
        (:'day', '11:00', 4, 'Grace Hopper', 'grace@example.com');
 insert into public.photos (path, alt, sort_order) values ('first.jpg', 'Coffee on the counter', 1);
+insert into public.dinner_services (service_date, first_seating, last_seating) values
+  (:'day'::date - 14, '17:30', '20:30'),  -- an evening already past
+  (:'day',            '17:30', '20:30');
 insert into storage.buckets (id, name, public) values ('elsewhere', 'elsewhere', false);
 insert into storage.objects (bucket_id, name) values ('photos', 'first.jpg'), ('elsewhere', 'private.pdf');
 
@@ -68,6 +71,11 @@ select throws_ok($$ insert into storage.objects (bucket_id, name) values ('photo
   '42501', null, 'a visitor cannot upload a file');
 select is((select count(*) from storage.objects), 0::bigint, 'a visitor cannot list files');
 select throws_ok('select private.is_owner()', '42501', null, 'a visitor cannot reach the private schema');
+select is((select count(*) from public.dinner_services), 1::bigint, 'a visitor sees upcoming dinner dates, not past ones');
+select throws_ok(format($$ insert into public.dinner_services (service_date, first_seating, last_seating) values (%L, '18:00', '20:00') $$, :'day'::date + 1),
+  '42501', null, 'a visitor cannot add a dinner date');
+select throws_ok($$ update public.dinner_services set last_seating = '23:00' $$, '42501', null, 'a visitor cannot change dinner times');
+select throws_ok($$ delete from public.dinner_services $$, '42501', null, 'a visitor cannot remove a dinner date');
 reset role;
 
 -- A signed-in account that is not an owner ---------------------------------------------------
@@ -85,6 +93,11 @@ select throws_ok($$ insert into storage.objects (bucket_id, name) values ('photo
   '42501', null, 'it cannot upload a file');
 select is((select count(*) from storage.objects), 0::bigint, 'it cannot list files');
 select lives_ok($$ delete from storage.objects $$, 'its file delete runs');
+select is((select count(*) from public.dinner_services), 1::bigint, 'it sees upcoming dinner dates only');
+select throws_ok(format($$ insert into public.dinner_services (service_date, first_seating, last_seating) values (%L, '18:00', '20:00') $$, :'day'::date + 1),
+  '42501', null, 'it cannot add a dinner date');
+select lives_ok($$ update public.dinner_services set last_seating = '23:00' $$, 'its dinner-time change runs');
+select lives_ok($$ delete from public.dinner_services $$, 'its dinner-date delete runs');
 select throws_ok('select * from private.owners', '42501', null, 'it cannot read the owner list');
 select throws_ok($$ insert into private.owners (user_id) values ('00000000-0000-4000-8000-000000000003') $$, '42501', null,
   'it cannot make itself an owner');
@@ -95,6 +108,10 @@ select is((select count(*) from public.reservations where status = 'pending'), 2
   '...but none of that changed or removed a reservation');
 select is((select alt from public.photos where path = 'first.jpg'), 'Coffee on the counter',
   '...or a photo');
+select results_eq(
+  $$ select count(*), max(last_seating) from public.dinner_services $$,
+  $$ values (2::bigint, '20:30'::time) $$,
+  '...or a dinner date');
 select is((select count(*) from storage.objects where bucket_id = 'photos'), 1::bigint, '...or a file');
 
 -- An owner whose account is deleted, and a later account with the same address ----------------
@@ -153,6 +170,25 @@ select throws_ok($$ insert into storage.objects (bucket_id, name) values ('elsew
 select is((select count(*) from storage.objects), 2::bigint, 'an owner can list the photo files, and only those');
 select lives_ok($$ delete from storage.objects where name = 'second.jpg' $$, 'an owner can delete a file');
 select lives_ok($$ delete from storage.objects where bucket_id = 'elsewhere' $$, 'an owner''s delete in another bucket runs');
+-- Dinner dates
+select is((select count(*) from public.dinner_services), 2::bigint, 'an owner sees past dinner dates as well');
+select lives_ok(format($$ insert into public.dinner_services (service_date, first_seating, last_seating) values (%L, '18:00', '21:00') $$, :'day'::date + 1),
+  'an owner can add a dinner date');
+select throws_ok(format($$ insert into public.dinner_services (service_date, first_seating, last_seating) values (%L, '18:00', '21:00') $$, :'day'::date + 1),
+  '23505', null, 'the same evening cannot be added twice');
+select throws_ok(format($$ insert into public.dinner_services (service_date, first_seating, last_seating) values (%L, '12:00', '14:00') $$, :'day'::date + 2),
+  '23514', null, 'a dinner date cannot start before 4pm: breakfast and lunch are walk-in only');
+select throws_ok(format($$ insert into public.dinner_services (service_date, first_seating, last_seating) values (%L, '20:00', '18:00') $$, :'day'::date + 2),
+  '23514', null, 'the last seating cannot be before the first');
+select throws_ok(format($$ insert into public.dinner_services (service_date, first_seating, last_seating) values (%L, '18:10', '20:00') $$, :'day'::date + 2),
+  '23514', null, 'seating times sit on the quarter hour');
+select lives_ok(format($$ update public.dinner_services set first_seating = '17:00', last_seating = '21:30' where service_date = %L $$, :'day'::date + 1),
+  'an owner can change the seating times');
+select throws_ok(format($$ update public.dinner_services set service_date = %L where service_date = %L $$, :'day'::date + 3, :'day'::date + 1),
+  '42501', null, 'a dinner date cannot be moved, only removed and added');
+select lives_ok(format($$ delete from public.dinner_services where service_date = %L $$, :'day'::date + 1),
+  'an owner can remove a dinner date');
+
 select throws_ok('select * from private.owners', '42501', null, 'an owner cannot read the owner list through the API');
 select throws_ok($$ insert into private.owners (user_id) values ('00000000-0000-4000-8000-000000000003') $$, '42501', null,
   'an owner cannot add another owner through the API');

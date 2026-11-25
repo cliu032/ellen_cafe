@@ -45,7 +45,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.035em; line-height: 
 .wordmark b { font-weight: inherit; font-style: italic; color: var(--accent); }
 .hero .label { margin: 22px 0 0; }
 .hero p.intro { max-width: 440px; margin: 20px 0 0; font-size: 17px; line-height: 1.6; }
-.hero p.walkin { max-width: 440px; margin: 10px 0 0; font-size: 17px; line-height: 1.6; }
+.hero p.service { max-width: 440px; margin: 8px 0 0; font-size: 17px; line-height: 1.6; }
 .hero .hero-actions { margin-top: 32px; }
 .status { margin: 18px 0 0; font-weight: 500; display: flex; align-items: center; gap: 10px; }
 .status::before {
@@ -91,6 +91,11 @@ section h2 { font-size: clamp(36px, 5vw, 56px); color: var(--accent); }
 .hours td .line { display: block; }
 .hours tr.today th, .hours tr.today td { color: var(--accent); font-weight: 500; }
 .visit .note { margin-top: 14px; }
+.visit h3.dinner-label { margin-top: 32px; }
+.visit h3.dinner-label + .note { margin-top: 0; }
+.dates { list-style: none; margin: 10px 0 14px; padding: 0; }
+.dates li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+.dates li span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .sr-only {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -152,17 +157,11 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 .chip input:checked + span { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 500; }
 .chip input:checked + span small { color: var(--bg); }
 .chip input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
-.chip input:disabled { cursor: default; }
-.chip input:disabled + span { background: transparent; color: var(--muted); border-style: dashed; }
-.chip input:disabled + span b { font-weight: 400; text-decoration: line-through; }
 .chip b { font-weight: inherit; }
 
-.cal-head, .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.cal-head { margin-bottom: 6px; font-size: 12px; color: var(--muted); text-align: center; }
-.cal .chip span { min-height: 52px; }
-.cal .blank { min-height: 52px; }
-.cal .later { display: none; }
-.cal.all .later { display: block; }
+.chips.dates { grid-template-columns: repeat(4, 1fr); }
+.chips.dates .chip span { min-height: 60px; }
+.chip[hidden] { display: none; }
 #more-dates { margin-top: 14px; }
 
 .send { border-top: 1px solid var(--ink); padding-top: 24px; }
@@ -171,6 +170,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
 .send .error { margin-top: 14px; }
 .send .error:has(#error:empty) { display: none; }
 
+.done-actions { margin-top: 28px; }
 .summary { border-top: 1px solid var(--ink); margin: 0 0 36px; }
 .summary div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .summary dt { color: var(--muted); font-size: 13px; }
@@ -186,7 +186,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px
   .gallery { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .fields { grid-template-columns: 1fr; }
   .chips { grid-template-columns: repeat(4, 1fr); }
-  .chips.times { grid-template-columns: repeat(3, 1fr); }
+  .chips.times, .chips.dates { grid-template-columns: repeat(3, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }
 

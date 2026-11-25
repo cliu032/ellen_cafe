@@ -6,8 +6,8 @@ JavaScript with no build step, backed by a Supabase project for reservations and
 | Page | What it is |
 | --- | --- |
 | `index.html` | Landing page: wordmark, open-now line, photos, menu, address and hours |
-| `reserve.html` | Dinner reservations (a walk-in message until dinner nights are set) |
-| `admin.html` | Owner area: answer reservation requests, manage the photos |
+| `reserve.html` | Dinner reservations (a walk-in message while no dinner dates are set) |
+| `admin.html` | Owner area: answer reservation requests, pick dinner dates, manage the photos |
 
 The look follows the café's logo: cream ground, rust-brown lowercase sans-serif, and the
 "caf·elle·atery·n" wordmark as the hero.
@@ -16,27 +16,21 @@ The look follows the café's logo: cream ground, rust-brown lowercase sans-serif
 
 - **Breakfast and lunch are walk-in only.** The daytime opening hours are shown but can never
   be booked.
-- **Dinner is by reservation.** Until dinner nights are set in `assets/config.js`, the site
-  takes no reservations and does not mention dinner: the "reserve" links are hidden and
-  `reserve.html` says "walk-ins only".
+- **Dinner is by reservation, on evenings the owner picks.** Dinner dates and their seating
+  times are set in the owner area and stored in Supabase. While there are none coming up, the
+  site takes no reservations and does not mention dinner: the "reserve" links are hidden and
+  `reserve.html` says "walk-in only". As soon as a date is added they appear, and the form
+  offers exactly the dates and times the owner chose.
 
-### Switching dinner reservations on
+### Offering dinner
 
-In `assets/config.js`, fill in the `dinner` block:
+Sign in at `admin.html`, open **dinner**, set the first and last seating, and select dates on
+the calendar. Select a date again (or use "remove") to take it off. Each date's times can be
+changed in the list below the calendar. Removing a date that already has requests leaves
+those requests in **reservations**, so the guests can be told.
 
-    dinner: {
-      from: "2027-02-05",   // first night; leave "" if dinner is already running
-      hours: {
-        4: { open: "17:30", close: "21:30" },   // Thursday
-        5: { open: "17:30", close: "22:00" },   // Friday
-        6: { open: "17:30", close: "22:00" },   // Saturday
-      },
-    },
-
-That one change makes the "reserve for dinner" button and the "reserve" nav link appear, shows
-the dinner hours once dinner has started, and opens the form for those nights. Clear `hours`
-again to stop taking reservations. The `reservation` block beside it sets the slot length,
-notice period, last seating, largest party and how far ahead guests can book.
+The remaining rules for the form — slot length, same-day notice and the largest party — are in
+the `reservation` block of `assets/config.js`.
 
 ## Run locally
 
@@ -56,12 +50,15 @@ they show even if JavaScript does not run. If any of those change, change them i
 
 ## Reservations
 
-A guest picks the number of guests, a night and a time, and sends a request. It is stored in
-the Supabase table `public.reservations` as `pending`; it is not a booking until an owner
-confirms it.
+A guest picks the number of guests, one of the dinner dates and a time, and sends a request.
+It is stored in the Supabase table `public.reservations` as `pending`; it is not a booking
+until an owner confirms it.
 
-- Bookable nights and times come from the `dinner` block; nights without dinner are shown
-  crossed out. Dates and "today" are worked out in the café's timezone, wherever the visitor is.
+- Only the owner's dinner dates are offered, with times every 30 minutes from the first
+  seating to the last. Dates and "tonight" are worked out in the café's timezone, wherever the
+  visitor is.
+- The database checks every request against those dates and times itself, so nothing can be
+  requested for breakfast, lunch, or an evening without dinner, even by going around the site.
 - The website can only add a request. It cannot read, change or delete any, so nobody can use
   it to see who has booked.
 - The database accepts at most 5 requests an hour (15 a day) from one visitor and 60 an hour
@@ -69,8 +66,6 @@ confirms it.
   request in `private.reservation_log`; entries older than two days are cleared whenever a new
   request is accepted.
 - If a request cannot be stored, the form offers to send it by email instead.
-- The database itself only enforces wider safety limits: times from 4pm onward on the quarter
-  hour, 1–20 guests, up to a year ahead. So changing the config never needs a database change.
 
 Nothing notifies the café when a request arrives. Someone has to open the owner area to see
 it — see "Not built yet" below.
@@ -79,9 +74,11 @@ it — see "Not built yet" below.
 
 Open `admin.html` and sign in.
 
-- **Reservations**: requests waiting for a reply are listed first. Confirm, decline, cancel or
+- **Reservations**: requests awaiting reply are listed first. Confirm, decline, cancel or
   delete each one. "email guest" opens your own email app with a reply already written — the
   site does not send email itself, so the guest only hears back if you send it.
+- **Dinner**: pick the evenings dinner is served and their seating times (see "Offering
+  dinner" above).
 - **Photos**: add photos (they are scaled down and stripped of location data in your browser
   before upload), describe them, reorder them, delete them. The first 12 appear on the
   landing page. A deleted photo leaves the page at once; its direct address can keep working
@@ -121,13 +118,15 @@ into the dashboard's SQL Editor.
 | Object | Purpose |
 | --- | --- |
 | `public.reservations` | Dinner reservation requests |
+| `public.dinner_services` | The evenings dinner is served, with first and last seating |
 | `public.photos` | Which uploaded photos appear on the site, in what order, with what description |
 | Storage bucket `photos` | The image files (public) |
 | `private.owners` | Accounts allowed into the owner area |
 | `private.reservation_log` | Recent request times and visitor addresses, for rate limiting |
 
 The Supabase URL and publishable key in `assets/config.js` are meant to be public. With them
-the website can add a reservation request and read the photo list, and nothing else; that is
+the website can add a reservation request and read the dinner dates and the photo list, and
+nothing else; that is
 decided by the row level security policies in the migrations, not by keeping the key secret.
 Never put a secret (`sb_secret_…`) or `service_role` key in this repository.
 

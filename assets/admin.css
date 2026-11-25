@@ -68,3 +68,32 @@
   .res .side { align-items: flex-start; }
   .res .actions { justify-content: flex-start; }
 }
+
+/* dinner dates */
+.cal-head, .cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; max-width: 520px; }
+.cal-head { margin: 20px 0 6px; font-size: 12px; color: var(--muted); text-align: center; }
+.cal .blank { min-height: 52px; }
+.cal .cal-day {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 52px;
+  padding: 4px 2px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer;
+  font: 400 15px/1.15 var(--sans); font-variant-numeric: tabular-nums;
+}
+.cal .cal-day small { font-size: 11px; color: var(--muted); }
+.cal .cal-day:hover { border-color: var(--accent); }
+.cal .cal-day[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 500; }
+.cal .cal-day[aria-pressed="true"] small { color: var(--bg); }
+.cal .cal-day[disabled] { opacity: .5; cursor: default; }
+#dinner-more { margin-top: 14px; }
+.list-title { font-size: 20px; letter-spacing: -.02em; color: var(--ink); margin: 40px 0 4px; }
+.dinner-list { list-style: none; margin: 0; padding: 0; max-width: 720px; }
+.dinner-list li {
+  display: grid; grid-template-columns: 110px 1fr 1fr auto; gap: 12px 16px; align-items: end;
+  padding: 14px 0; border-bottom: 1px solid var(--line);
+}
+.dinner-list .when { font-weight: 500; align-self: center; }
+.dinner-list .when span { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+.dinner-list .textbtn { align-self: center; }
+@media (max-width: 720px) {
+  .dinner-list li { grid-template-columns: 1fr 1fr; }
+  .dinner-list .when, .dinner-list .textbtn { grid-column: 1 / -1; justify-self: start; }
+}

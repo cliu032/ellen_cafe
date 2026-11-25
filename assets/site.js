@@ -1,5 +1,5 @@
 // Shared by every page: small helpers, then everything on the page that is filled in from
-// assets/config.js. Text is only ever written with textContent, never as HTML.
+// assets/config.js or from Supabase. Text is only ever written with textContent, never as HTML.
 (function () {
   const C = window.CAFE;
   const $ = (id) => document.getElementById(id);
@@ -30,6 +30,9 @@
     return d.toISOString().slice(0, 10);
   };
   const weekdayOf = (s) => asUTC(s).getUTCDay();
+  const fmtDate = (s, opts) => asUTC(s).toLocaleDateString("en-AU", Object.assign({ timeZone: "UTC" }, opts));
+  // "Fri 4 Dec"
+  const shortDate = (s) => fmtDate(s, { weekday: "short" }) + " " + fmtDate(s, { day: "numeric", month: "short" });
 
   // Current date and time at the café, whatever the visitor's own timezone is.
   const cafeNow = () => {
@@ -51,26 +54,77 @@
     return { date, minutes: Number(parts.hour) * 60 + Number(parts.minute), weekday: weekdayOf(date) };
   };
 
-  // Daytime service is walk-in only; dinner is by reservation. Dinner exists once the config
-  // lists at least one night, and from `dinner.from` if a first night is given.
-  const dinner = C.dinner || {};
-  const dinnerNights = dinner.hours || {};
-  const dinnerFrom = /^\d{4}-\d{2}-\d{2}$/.test(dinner.from || "") ? dinner.from : "";
-  const takesBookings = Object.keys(dinnerNights).some((d) => dinnerNights[d]);
-  const dinnerOn = (date) =>
-    takesBookings && (!dinnerFrom || date >= dinnerFrom) ? dinnerNights[weekdayOf(date)] || null : null;
+  // ---------------------------------------------------------------- dinner dates
 
-  // What is served on a date, in order through the day.
-  const servicesOn = (date) => {
-    const list = [];
-    const day = C.hours[weekdayOf(date)];
-    if (day) list.push({ dinner: false, open: day.open, close: day.close });
-    const night = dinnerOn(date);
-    if (night) list.push({ dinner: true, open: night.open, close: night.close });
-    return list.sort((a, b) => toMin(a.open) - toMin(b.open));
+  // Daytime service is walk-in only. Dinner runs on evenings the owner picks in the owner
+  // area; those dates and their seating times are read from Supabase. The last answer is
+  // remembered in this browser so a returning visitor sees the right page at once.
+  const SB = C.supabase || {};
+  const hasBackend = Boolean(SB.url && SB.publishableKey);
+  const base = hasBackend ? SB.url.replace(/\/+$/, "") : "";
+  const DINNER_KEY = "ellen.dinner";
+  const TIME = /^([01]\d|2[0-3]):[0-5]\d/;
+
+  // Rows as the API returns them -> [{ date, first, last }], upcoming only, soonest first.
+  function tidyDinner(rows) {
+    if (!Array.isArray(rows)) return [];
+    const today = cafeNow().date;
+    return rows
+      .filter((r) => r && /^\d{4}-\d{2}-\d{2}$/.test(r.service_date) && TIME.test(r.first_seating) && TIME.test(r.last_seating))
+      .map((r) => ({ date: r.service_date, first: r.first_seating.slice(0, 5), last: r.last_seating.slice(0, 5) }))
+      .filter((r) => r.date >= today && toMin(r.last) >= toMin(r.first))
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+  function rememberedDinner() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(DINNER_KEY));
+      return saved && Array.isArray(saved.rows) ? tidyDinner(saved.rows) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  async function fetchDinner() {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const res = await fetch(
+        base + "/rest/v1/dinner_services?select=service_date,first_seating,last_seating" +
+          "&service_date=gte." + cafeNow().date + "&order=service_date.asc&limit=200",
+        { headers: { apikey: SB.publishableKey }, signal: ctrl.signal }
+      );
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const rows = await res.json();
+      try {
+        localStorage.setItem(DINNER_KEY, JSON.stringify({ rows }));
+      } catch (e) { /* private browsing: nothing to keep */ }
+      return tidyDinner(rows);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // onDinner(fn): fn(dates, settled) runs with the remembered dates straight away (if any),
+  // then again once the current dates are known. `settled` is true on that last call. If the
+  // dates cannot be fetched, the remembered ones stand; with none remembered, there are none.
+  const listeners = [];
+  let known = rememberedDinner();
+  let settled = !hasBackend;
+  if (settled) known = [];
+  const onDinner = (fn) => {
+    listeners.push(fn);
+    if (known || settled) fn(known || [], settled);
   };
+  if (hasBackend) {
+    fetchDinner()
+      .then((rows) => { known = rows; })
+      .catch(() => { known = known || []; })
+      .then(() => {
+        settled = true;
+        listeners.forEach((fn) => fn(known, true));
+      });
+  }
 
-  window.CAFE_UTIL = { fmtTime, toMin, asUTC, addDays, weekdayOf, cafeNow, DAYS, takesBookings, dinnerFrom, dinnerOn };
+  window.CAFE_UTIL = { fmtTime, toMin, asUTC, addDays, weekdayOf, fmtDate, shortDate, cafeNow, DAYS, onDinner };
 
   // ---------------------------------------------------------------- text from the config
 
@@ -83,30 +137,29 @@
   const ig = $("ig");
   ig.href = C.instagram;
   ig.textContent = "instagram " + C.instagramHandle;
-
-  // Parts of a page that only apply while reservations exist, or only while they do not.
-  document.querySelectorAll("[data-if]").forEach((n) => {
-    n.hidden = (n.dataset.if === "bookings") !== takesBookings;
-  });
   if (C.mapUrl) document.querySelectorAll("[data-directions]").forEach((a) => (a.href = C.mapUrl));
 
   // ---------------------------------------------------------------- open now?
 
-  // "Open now until 2:30pm" / "Closed now · opens tomorrow at 7:30am", in the café's own time.
+  // "Open until 2:30pm" / "Closed · opens tomorrow, 7:30am", for the daytime walk-in hours and
+  // in the café's own time.
   function openStatus() {
     const now = cafeNow();
-    const today = servicesOn(now.date);
-    const current = today.find((s) => now.minutes >= toMin(s.open) && now.minutes < toMin(s.close));
-    if (current) {
-      return { open: true, text: (current.dinner ? "Open for dinner until " : "Open now until ") + fmtTime(current.close) };
+    const today = C.hours[now.weekday];
+    if (today && now.minutes >= toMin(today.open) && now.minutes < toMin(today.close)) {
+      return { open: true, text: "Open until " + fmtTime(today.close) };
     }
-    const opens = (s, day) => "Closed now · opens " + day + " at " + fmtTime(s.open) + (s.dinner ? " for dinner" : "");
-    const later = today.find((s) => now.minutes < toMin(s.open));
-    if (later) return { open: false, text: opens(later, "today") };
+    if (today && now.minutes < toMin(today.open)) {
+      return { open: false, text: "Closed · opens " + fmtTime(today.open) };
+    }
     for (let i = 1; i <= 7; i++) {
-      const date = addDays(now.date, i);
-      const first = servicesOn(date)[0];
-      if (first) return { open: false, text: opens(first, i === 1 ? "tomorrow" : DAYS[weekdayOf(date)]) };
+      const day = C.hours[(now.weekday + i) % 7];
+      if (day) {
+        return {
+          open: false,
+          text: "Closed · opens " + (i === 1 ? "tomorrow" : DAYS[(now.weekday + i) % 7]) + ", " + fmtTime(day.open),
+        };
+      }
     }
     return null;
   }
@@ -123,23 +176,67 @@
     setInterval(showStatus, 60000);
   }
 
-  // ---------------------------------------------------------------- landing page: actions
+  // ---------------------------------------------------------------- with and without dinner
 
-  // With reservations: "reserve for dinner" leads, directions follow. Without: directions lead.
-  const primary = $("hero-primary");
-  const secondary = $("hero-secondary");
-  if (primary && secondary && takesBookings) {
-    primary.textContent = "reserve for dinner";
-    primary.href = "reserve.html";
-    primary.removeAttribute("target");
-    primary.removeAttribute("rel");
-    secondary.textContent = "get directions";
-    secondary.href = C.mapUrl || secondary.href;
-    secondary.target = "_blank";
-    secondary.rel = "noopener";
-  } else if (secondary && !C.menu.length) {
-    secondary.hidden = true;
-  }
+  // Everything that differs between "walk-in only" and "dinner by reservation on some evenings".
+  onDinner((dates) => {
+    const dinner = dates.length > 0;
+    document.querySelectorAll("[data-if]").forEach((n) => {
+      n.hidden = (n.dataset.if === "dinner") !== dinner;
+    });
+
+    const note = $("service-note");
+    if (note) note.textContent = (dinner ? C.dinnerNote : C.walkInNote) || "";
+
+    // The hero leads with "reserve" when there is dinner to reserve, with directions otherwise.
+    const primary = $("hero-primary");
+    const secondary = $("hero-secondary");
+    if (primary && secondary) {
+      const link = (a, text, href, external) => {
+        a.textContent = text;
+        a.href = href;
+        if (external) {
+          a.target = "_blank";
+          a.rel = "noopener";
+        } else {
+          a.removeAttribute("target");
+          a.removeAttribute("rel");
+        }
+        a.hidden = false;
+      };
+      if (dinner) {
+        link(primary, "reserve", "reserve.html", false);
+        link(secondary, "directions", C.mapUrl, true);
+      } else {
+        link(primary, "directions", C.mapUrl, true);
+        if (C.menu.length) link(secondary, "menu", "#menu", false);
+        else secondary.hidden = true;
+      }
+    }
+
+    // "Dinner tonight from 5:30pm", while tonight's last seating is still ahead.
+    const tonight = $("tonight");
+    if (tonight) {
+      const now = cafeNow();
+      const row = dates.find((d) => d.date === now.date && now.minutes <= toMin(d.last));
+      tonight.hidden = !row;
+      if (row) tonight.textContent = "Dinner tonight from " + fmtTime(row.first) + ".";
+    }
+
+    const hoursNote = $("hours-note");
+    if (hoursNote) hoursNote.textContent = dinner ? "Breakfast and lunch are walk-in only." : "Walk-in only. No bookings.";
+
+    // The next few dinner dates, under the hours.
+    const list = $("dinner-dates");
+    if (list) {
+      list.textContent = "";
+      dates.slice(0, 6).forEach((d) => {
+        const li = el("li");
+        li.append(el("span", shortDate(d.date)), el("span", "from " + fmtTime(d.first)));
+        list.append(li);
+      });
+    }
+  });
 
   // ---------------------------------------------------------------- menu
 
@@ -174,9 +271,7 @@
   // Photos the owner has uploaded (see admin.html). The section stays hidden if there are
   // none, or if they cannot be fetched.
   const gallery = $("gallery-list");
-  const SB = C.supabase || {};
-  if (gallery && SB.url && SB.publishableKey) {
-    const base = SB.url.replace(/\/+$/, "");
+  if (gallery && hasBackend) {
     fetch(base + "/rest/v1/photos?select=path,alt,width,height&order=sort_order.asc,created_at.asc&limit=12", {
       headers: { apikey: SB.publishableKey },
     })
@@ -230,7 +325,6 @@
   const hours = $("hours");
   if (hours) {
     const now = cafeNow();
-    const dinnerRunning = takesBookings && (!dinnerFrom || now.date >= dinnerFrom);
     hours.textContent = "";
     [1, 2, 3, 4, 5, 6, 0].forEach((d) => {
       const tr = el("tr");
@@ -240,24 +334,9 @@
         tr.className = "today";
         th.append(el("span", " (today)", "sr-only"));
       }
-      const td = el("td");
       const day = C.hours[d];
-      const night = dinnerRunning ? dinnerNights[d] : null;
-      if (!day && !night) td.textContent = "Closed";
-      if (day) td.append(el("span", fmtTime(day.open) + " – " + fmtTime(day.close), "line"));
-      if (night) td.append(el("span", "dinner " + fmtTime(night.open) + " – " + fmtTime(night.close), "line"));
-      tr.append(th, td);
+      tr.append(th, el("td", day ? fmtTime(day.open) + " – " + fmtTime(day.close) : "Closed"));
       hours.append(tr);
     });
-    const note = $("hours-note");
-    if (note) {
-      let text = takesBookings
-        ? "Breakfast and lunch are walk-in only. Dinner is by reservation."
-        : "Walk-ins only. No bookings needed.";
-      if (takesBookings && !dinnerRunning) {
-        text += " Dinner starts " + asUTC(dinnerFrom).toLocaleDateString("en-AU", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long" }) + ".";
-      }
-      note.textContent = text;
-    }
   }
 })();

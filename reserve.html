@@ -15,29 +15,30 @@
 <body>
   <div class="wrap">
     <nav class="nav" aria-label="Main">
-      <a class="brand" href="index.html" aria-label="ellen — home">ellen</a>
+      <a class="brand" href="index.html" aria-label="ellen, home">ellen</a>
       <ul>
         <li><a href="index.html#menu">menu</a></li>
         <li><a href="index.html#visit">visit</a></li>
-        <li data-if="bookings" hidden><a href="reserve.html" aria-current="page">reserve</a></li>
+        <li data-if="dinner" hidden><a href="reserve.html" aria-current="page">reserve</a></li>
       </ul>
     </nav>
 
-    <main class="reserve">
-      <!-- Shown until dinner nights are set in assets/config.js: there is nothing to reserve yet. -->
+    <main class="reserve" id="reserve-main">
+      <!-- Shown while the owner has no dinner dates set: there is nothing to reserve. -->
       <div id="closed-view">
         <p class="label">reservations</p>
-        <h1>walk-ins only</h1>
-        <p class="lede">We don't take bookings for breakfast or lunch. Just come by, Tuesday to Sunday.</p>
+        <h1>walk-in only</h1>
+        <p class="lede">We don't take bookings for breakfast or lunch. Come by, Tuesday to Sunday.</p>
         <p class="hero-actions">
-          <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a>
-          <a class="link" href="index.html#visit">opening hours</a>
+          <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a>
+          <a class="link" href="index.html#visit">hours</a>
         </p>
+        <noscript><p class="hint">Dinner reservations, when offered, need JavaScript. Or email <a class="link" href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a>.</p></noscript>
       </div>
 
       <div id="form-view" hidden>
         <p class="label">reservations</p>
-        <h1>reserve for dinner</h1>
+        <h1>dinner</h1>
         <p class="lede" data-cafe="reserveIntro"></p>
 
         <form id="reserve-form" novalidate>
@@ -49,9 +50,8 @@
 
           <fieldset class="group" id="date-group" aria-describedby="date-error">
             <legend>Date</legend>
-            <div class="cal-head" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
-            <div class="cal" id="cal"></div>
-            <button class="textbtn" type="button" id="more-dates">show later dates</button>
+            <div class="chips dates" id="date-chips"></div>
+            <button class="textbtn" type="button" id="more-dates" hidden>more dates</button>
             <p class="field-error" id="date-error"></p>
           </fieldset>
 
@@ -63,7 +63,7 @@
           </fieldset>
 
           <fieldset class="group" id="details-group">
-            <legend>Your details</legend>
+            <legend>Details</legend>
             <div class="fields">
               <div class="field">
                 <label for="name">Name</label>
@@ -81,28 +81,28 @@
                 <p class="field-error" id="phone-error"></p>
               </div>
               <div class="field full">
-                <label for="notes">Anything we should know? <span class="optional">optional</span></label>
+                <label for="notes">Notes <span class="optional">optional</span></label>
                 <textarea id="notes" name="notes" rows="2" maxlength="500"></textarea>
               </div>
             </div>
           </fieldset>
 
           <div class="send">
-            <p class="summary-line" id="summary-line"></p>
-            <button class="btn" type="submit" id="submit">send request</button>
-            <p class="error" role="alert"><span id="error"></span> <a class="link" id="email-instead" hidden>Send it by email instead</a></p>
-            <p class="hint" id="fine-print"></p>
+            <p class="summary-line" id="summary-line" hidden></p>
+            <button class="btn" type="submit" id="submit">request reservation</button>
+            <p class="error" role="alert"><span id="error"></span> <a class="link" id="email-instead" hidden>Email it instead</a></p>
+            <p class="hint">This is a request. We confirm by email.</p>
           </div>
         </form>
       </div>
 
       <div id="done-view" hidden>
         <p class="label">reservations</p>
-        <h1 id="done-title" tabindex="-1">request sent</h1>
+        <h1 id="done-title" tabindex="-1">request received</h1>
         <p class="lede" id="done-text"></p>
         <dl class="summary" id="summary"></dl>
         <p class="hint" id="done-next"></p>
-        <p><a class="btn ghost" href="index.html">back to home</a></p>
+        <p class="done-actions"><a class="btn ghost" href="index.html">home</a></p>
       </div>
     </main>
 

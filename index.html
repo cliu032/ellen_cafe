@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <title>ellen cafe &amp; eatery — Alexandria, Sydney</title>
-  <meta name="description" content="ellen cafe &amp; eatery, 153/18 Huntley St, Alexandria, near Sydney Park. Open Tuesday to Sunday. Walk-ins only for breakfast and lunch.">
+  <meta name="description" content="ellen cafe &amp; eatery, 153/18 Huntley St, Alexandria, near Sydney Park. Breakfast and lunch, Tuesday to Sunday. Walk-in only.">
   <meta property="og:title" content="ellen cafe &amp; eatery">
-  <meta property="og:description" content="Cafe &amp; eatery near Sydney Park, Alexandria. Open Tuesday to Sunday. Walk-ins only for breakfast and lunch.">
+  <meta property="og:description" content="A small neighbourhood cafe near Sydney Park. Breakfast and lunch, Tuesday to Sunday. Walk-in only.">
   <meta property="og:type" content="website">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,11 +18,11 @@
 <body>
   <div class="wrap">
     <nav class="nav" aria-label="Main">
-      <a class="brand" href="index.html" aria-label="ellen — home">ellen</a>
+      <a class="brand" href="index.html" aria-label="ellen, home">ellen</a>
       <ul>
         <li><a href="#menu">menu</a></li>
         <li><a href="#visit">visit</a></li>
-        <li data-if="bookings" hidden><a href="reserve.html">reserve</a></li>
+        <li data-if="dinner" hidden><a href="reserve.html">reserve</a></li>
       </ul>
     </nav>
 
@@ -31,11 +31,12 @@
         <h1 class="wordmark" aria-label="ellen cafe &amp; eatery"><span aria-hidden="true">caf<b>elle</b>atery<b>n</b></span></h1>
         <p class="label" data-cafe="tagline">cafe &amp; eatery · alexandria, sydney</p>
         <p class="status" id="open-status" hidden></p>
-        <p class="intro" data-cafe="intro">A small neighbourhood cafe and eatery near Sydney Park. Open Tuesday to Sunday.</p>
-        <p class="walkin" data-cafe="walkInNote">Walk-ins only for breakfast and lunch. No booking needed.</p>
+        <p class="intro" data-cafe="intro">A small neighbourhood cafe near Sydney Park.</p>
+        <p class="service" id="service-note">Breakfast and lunch, Tuesday to Sunday. Walk-in only.</p>
+        <p class="service" id="tonight" hidden></p>
         <p class="hero-actions">
-          <a class="btn" id="hero-primary" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a>
-          <a class="link" id="hero-secondary" href="#menu">see the menu</a>
+          <a class="btn" id="hero-primary" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a>
+          <a class="link" id="hero-secondary" href="#menu">menu</a>
         </p>
       </header>
 
@@ -50,7 +51,7 @@
           <div>
             <div class="menu" id="menu-list"></div>
             <p class="note" data-cafe="menuNote"></p>
-            <noscript><p class="note">The menu needs JavaScript to display. Find today's dishes on <a class="link" href="https://www.instagram.com/ellen_cafe/">Instagram</a>.</p></noscript>
+            <noscript><p class="note">The menu needs JavaScript. Today's dishes are on <a class="link" href="https://www.instagram.com/ellen_cafe/">Instagram</a>.</p></noscript>
           </div>
         </div>
       </section>
@@ -62,28 +63,34 @@
             <div>
               <h3 class="label">find us</h3>
               <address id="address"><p>153/18 Huntley St</p><p>Alexandria NSW 2015</p></address>
-              <p><a class="link" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a></p>
+              <p><a class="link" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a></p>
               <p id="contact"><a class="link" href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a></p>
             </div>
             <div>
               <h3 class="label">hours</h3>
               <table class="hours" id="hours"><tbody><tr><th scope="row">Tuesday to Sunday</th><td>Open</td></tr><tr><th scope="row">Monday</th><td>Closed</td></tr></tbody></table>
-              <p class="note" id="hours-note">Walk-ins only. No bookings needed.</p>
+              <p class="note" id="hours-note">Walk-in only. No bookings.</p>
+              <div data-if="dinner" hidden>
+                <h3 class="label dinner-label">dinner</h3>
+                <p class="note">Selected evenings, by reservation.</p>
+                <ul class="dates" id="dinner-dates"></ul>
+                <p><a class="link" href="reserve.html">reserve</a></p>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="cta" aria-labelledby="cta-h">
-        <div data-if="walk-in-only">
-          <h2 id="cta-h">no booking needed.</h2>
-          <p>Just come by, Tuesday to Sunday.</p>
-          <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">get directions</a>
+      <section class="cta" aria-label="Before you come">
+        <div data-if="walk-in">
+          <h2>walk in.</h2>
+          <p>No booking needed.</p>
+          <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a>
         </div>
-        <div data-if="bookings" hidden>
-          <h2>dinner? save a seat.</h2>
-          <p>Breakfast and lunch stay walk-in only.</p>
-          <a class="btn" href="reserve.html">reserve for dinner</a>
+        <div data-if="dinner" hidden>
+          <h2>dinner.</h2>
+          <p>Selected evenings, by reservation.</p>
+          <a class="btn" href="reserve.html">reserve</a>
         </div>
       </section>
     </main>

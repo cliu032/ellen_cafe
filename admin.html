@@ -51,7 +51,7 @@
       <section id="view-denied" hidden>
         <div class="label">owner area</div>
         <h1 id="denied-h" tabindex="-1">no access</h1>
-        <p>This account is signed in but is not on the owner list, so there is nothing to show.</p>
+        <p>This account isn't on the owner list.</p>
         <p class="hint">Signed in as <span id="denied-who"></span>.</p>
         <p><button class="btn ghost" type="button" id="denied-signout">sign out</button></p>
       </section>
@@ -64,9 +64,10 @@
       </section>
 
       <section id="view-app" hidden>
-        <p class="warning" id="signup-warning" hidden>Anyone can still create an account on this Supabase project. Only owners should have one: in Supabase, open Authentication → Sign In / Providers and switch off “Allow new users to sign up”.</p>
+        <p class="warning" id="signup-warning" hidden>Sign-up is open on this Supabase project. Turn it off: Authentication → Sign In / Providers → “Allow new users to sign up”.</p>
         <div class="tabs" role="tablist" aria-label="Owner area">
           <button type="button" role="tab" id="tab-reservations" aria-controls="panel-reservations" aria-selected="true">reservations <span class="badge" id="pending-badge" hidden></span></button>
+          <button type="button" role="tab" id="tab-dinner" aria-controls="panel-dinner" aria-selected="false" tabindex="-1">dinner</button>
           <button type="button" role="tab" id="tab-photos" aria-controls="panel-photos" aria-selected="false" tabindex="-1">photos</button>
         </div>
         <p class="notice" id="notice" role="status"></p>
@@ -76,15 +77,35 @@
             <div class="field">
               <label for="res-filter">Show</label>
               <select id="res-filter">
-                <option value="todo">Waiting for a reply</option>
+                <option value="todo">Awaiting reply</option>
                 <option value="upcoming">Upcoming</option>
                 <option value="past">Past</option>
-                <option value="all">Everything</option>
+                <option value="all">All</option>
               </select>
             </div>
             <button class="textbtn" type="button" id="res-refresh">refresh</button>
           </div>
           <div id="res-list" aria-live="polite"></div>
+        </div>
+
+        <div id="panel-dinner" role="tabpanel" aria-labelledby="tab-dinner" tabindex="0" hidden>
+          <p class="hint">Dinner runs only on the dates you pick. Guests reserve between the first and last seating.</p>
+          <div class="toolbar">
+            <div class="field">
+              <label for="dinner-first">First seating</label>
+              <select id="dinner-first"></select>
+            </div>
+            <div class="field">
+              <label for="dinner-last">Last seating</label>
+              <select id="dinner-last"></select>
+            </div>
+          </div>
+          <p class="hint" id="dinner-help">Select a date to add it with these times. Select it again to remove it.</p>
+          <div class="cal-head" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+          <div class="cal" id="dinner-cal" role="group" aria-label="Dinner dates" aria-describedby="dinner-help"></div>
+          <button class="textbtn" type="button" id="dinner-more">more weeks</button>
+          <h2 class="list-title">upcoming dinners</h2>
+          <ul class="dinner-list" id="dinner-list"></ul>
         </div>
 
         <div id="panel-photos" role="tabpanel" aria-labelledby="tab-photos" tabindex="0" hidden>
@@ -93,7 +114,7 @@
             <input class="sr-only" type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" multiple>
             <p class="hint" id="photo-progress" role="status"></p>
           </div>
-          <p class="hint">Photos appear on the home page in this order. Give each one a short description for visitors who use a screen reader.</p>
+          <p class="hint">Shown on the home page in this order. Describe each photo for screen readers.</p>
           <ul class="photo-list" id="photo-list"></ul>
         </div>
       </section>

@@ -22,10 +22,17 @@ $$;
 
 select (now() at time zone 'Australia/Sydney')::date + 7 as day \gset
 
+-- Dinner is served on the test day and the six evenings after it, 5pm to 10:15pm.
+insert into public.dinner_services (service_date, first_seating, last_seating)
+select :'day'::date + n, '17:00', '22:15' from generate_series(0, 6) n;
+
 select pg_temp.request(:'day', '18:30', 2, 'Ada Lovelace', 'ada@example.com') as ok \gset
 select pg_temp.request(:'day', '19:00', 2, '  Grace   Hopper ', ' GRACE@Example.COM ', ' 0400  000 000 ', '  window seat  ') as messy \gset
 select pg_temp.request(:'day'::date - 8, '18:30', 2, 'Past', 'past@example.com') as past \gset
 select pg_temp.request(:'day', '10:30', 2, 'Lunch', 'lunch@example.com') as lunch \gset
+select pg_temp.request(:'day'::date + 10, '18:30', 2, 'No dinner', 'nodinner@example.com') as no_dinner \gset
+select pg_temp.request(:'day', '16:45', 2, 'Early', 'early@example.com') as too_early \gset
+select pg_temp.request(:'day', '22:30', 2, 'Late', 'late-seat@example.com') as too_late \gset
 select pg_temp.request(:'day'::date + 400, '18:30', 2, 'Far', 'far@example.com') as far \gset
 select pg_temp.request(:'day', '18:07', 2, 'Odd', 'odd@example.com') as odd_time \gset
 select pg_temp.request(:'day', '18:30', 0, 'Zero', 'zero@example.com') as party_zero \gset
@@ -105,8 +112,11 @@ select throws_ok(
 select throws_ok('select * from private.reservation_log', '42501', null, 'a visitor cannot read the rate-limit log');
 
 select throws_ok(:'past', '42501', null, 'a past date is rejected');
-select throws_ok(:'far', '42501', null, 'a date more than a year ahead is rejected');
+select throws_ok(:'far', '42501', null, 'a far-off date with no dinner is rejected');
 select throws_ok(:'lunch', '42501', null, 'a daytime request is rejected: breakfast and lunch are walk-in only');
+select throws_ok(:'no_dinner', '42501', null, 'a date without dinner is rejected');
+select throws_ok(:'too_early', '42501', null, 'a time before the first seating is rejected');
+select throws_ok(:'too_late', '42501', null, 'a time after the last seating is rejected');
 select throws_ok(:'odd_time', '23514', null, 'a time off the quarter hour is rejected');
 select throws_ok(:'party_zero', '23514', null, 'a party of 0 is rejected');
 select throws_ok(:'party_big', '23514', null, 'a party of 21 is rejected');
