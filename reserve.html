@@ -18,10 +18,11 @@
   <link rel="preconnect" href="https://qgibakqqtmfbbafclnfo.supabase.co" crossorigin>
   <link rel="preload" href="assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="assets/styles.css?v=6">
+  <link rel="stylesheet" href="assets/styles.css?v=7">
   <!-- With scripts on, hold back the static walk-in message until the page knows what to show.
-       If the page script never starts, give the static message back. -->
-  <script>document.documentElement.className="js";setTimeout(function(){if(!window.RESERVE_STARTED)document.documentElement.className=""},4000);</script>
+       If the page script has not started after a few seconds, give the static message back,
+       with a line saying the page did not finish loading. -->
+  <script>document.documentElement.className="js";setTimeout(function(){if(!window.RESERVE_STARTED)document.documentElement.className="stalled"},4000);</script>
 </head>
 <body>
   <div class="wrap">
@@ -37,13 +38,15 @@
     <main class="reserve" id="reserve-main">
       <!-- In the HTML for visitors without scripts; otherwise shown when there is nothing to reserve. -->
       <div id="closed-view">
-        <h1 tabindex="-1">walk-in only</h1>
+        <h1 tabindex="-1" aria-describedby="closed-unsent">walk-in only</h1>
+        <p class="unsent" id="closed-unsent" data-unsent hidden></p>
         <p class="lede">No booking needed for breakfast or lunch. Come by, Tuesday to Sunday.</p>
         <p class="hero-actions">
           <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a>
           <a class="link" href="index.html#visit">hours</a>
         </p>
         <noscript><p class="hint">This page needs JavaScript. Or email <a class="link" href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a>.</p></noscript>
+        <p class="hint stalled-note">This page didn't finish loading. Reload to try again.</p>
       </div>
 
       <div id="loading-view">
@@ -59,7 +62,8 @@
 
       <div id="tonight-view" hidden>
         <p class="label">reservations</p>
-        <h1 tabindex="-1" data-cafe="reserveTitle"></h1>
+        <h1 tabindex="-1" data-cafe="reserveTitle" aria-describedby="tonight-unsent"></h1>
+        <p class="unsent" id="tonight-unsent" data-unsent hidden></p>
         <p class="lede">Tonight's reservations have closed.</p>
         <p class="record" data-record hidden></p>
         <p class="done-actions"><a class="btn ghost" href="index.html">home</a></p>
@@ -107,7 +111,7 @@
                 <label for="email">Email</label>
                 <input type="email" id="email" name="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" enterkeyhint="next" maxlength="254" required aria-describedby="email-error email-suggest">
                 <p class="field-error" id="email-error"></p>
-                <p class="suggest" id="email-suggest"></p>
+                <p class="suggest" id="email-suggest" role="status"></p>
               </div>
               <div class="field">
                 <label for="phone">Phone <span class="optional">optional</span></label>
@@ -126,7 +130,7 @@
             <p class="reply-to" id="reply-to" hidden></p>
             <button class="btn" type="submit" id="submit">request reservation</button>
             <p class="error" role="alert"><span id="error"></span><a class="link" id="email-instead" hidden>email it instead</a><span id="error-end"></span></p>
-            <p class="hint" id="after-email" hidden></p>
+            <p class="hint" id="after-email" role="status" tabindex="-1" hidden></p>
             <p class="hint">Reserved once we confirm by email.</p>
           </div>
         </form>
@@ -147,8 +151,8 @@
       <a class="link" id="ig" href="https://www.instagram.com/ellen_cafe/" target="_blank" rel="noopener">instagram @ellen_cafe</a>
     </footer>
   </div>
-  <script src="assets/config.js?v=5"></script>
-  <script src="assets/site.js?v=5"></script>
-  <script src="assets/reserve.js?v=5"></script>
+  <script src="assets/config.js?v=7"></script>
+  <script src="assets/site.js?v=7"></script>
+  <script src="assets/reserve.js?v=7"></script>
 </body>
 </html>

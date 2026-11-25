@@ -206,7 +206,7 @@
   // One line, in the café's own time. Daytime hours come from the config (and are only stated
   // once the café has confirmed them); dinner comes from the owner's dates.
   //   "Open until 2:30pm" · "Closed · opens 7:30am" · "Closed · opens tomorrow, 7:30am"
-  //   "Closed · dinner from 5:30pm" · "Dinner · last seating 9pm"
+  //   "Closed · dinner from 5:30pm" · "Dinner · last seating 9pm" · "Dinner · reserved tables only"
   function openStatus(tonight) {
     const now = cafeNow();
     const sure = C.hoursConfirmed !== false;
@@ -218,7 +218,11 @@
       return { open: false, text: "Closed · opens " + fmtTime(today.open) };
     }
     if (tonight && now.minutes >= toMin(tonight.first)) {
-      return { open: true, text: "Dinner · last seating " + fmtTime(tonight.last) };
+      // Dinner is under way. Once tonight can no longer be requested, do not let the line read
+      // as an invitation to walk in.
+      return slots(tonight).length
+        ? { open: true, text: "Dinner · last seating " + fmtTime(tonight.last) }
+        : { open: false, text: "Dinner · reserved tables only" };
     }
     if (!sure) return null;
     if (tonight) return { open: false, text: "Closed · dinner from " + fmtTime(tonight.first) };
@@ -249,7 +253,10 @@
 
   // Everything that differs between "walk-in only" and "dinner by reservation on some evenings".
   // Runs when the dates arrive and once a minute, so a page left open keeps telling the truth.
-  const fromTime = (d) => "from " + fmtTime(d.first);
+  // "from 5:30pm": an evening's first seating, or tonight the first time that can still be requested.
+  const fromTime = (d) => "from " + fmtTime((d.date === cafeNow().date && slots(d)[0]) || d.first);
+  let heroLeads = false; // "reserve" leads the hero actions (the page starts without it)
+  let datesShown = null; // what the list of dinner dates was last drawn from
   function showDinner(dates) {
     const { listed, open, tonight } = dinnerNow(dates);
     const today = cafeNow().date;
@@ -272,19 +279,32 @@
     if (dinnerNote) {
       dinnerNote.hidden = !listed.length;
       dinnerNote.textContent = !next
-        ? "Dinner tonight. Reservations have closed."
+        ? "Dinner tonight is by reservation. Reservations have closed."
         : next.date === today
           ? "Dinner by reservation. Tonight " + fromTime(next) + "."
           : "Dinner by reservation. Next: " + shortDate(next.date) + ".";
     }
 
-    // With dinner on offer "reserve" leads and directions becomes a plain link.
+    // With dinner on offer "reserve" leads and directions becomes a plain link. If that
+    // happens on a page already in view (a slow first visit), a tap aimed at the old button
+    // must not land on the new one: the row ignores taps for a moment.
     const directions = $("hero-directions");
-    if (directions) directions.className = open.length ? "link" : "btn";
+    if (directions) {
+      const leads = open.length > 0;
+      if (leads !== heroLeads) {
+        heroLeads = leads;
+        const actions = directions.parentElement;
+        actions.classList.add("settling");
+        setTimeout(() => actions.classList.remove("settling"), 700);
+      }
+      directions.className = leads ? "link" : "btn";
+    }
 
     // The next few evenings, each a link straight to that date on the form.
     const list = $("dinner-dates");
-    if (list) {
+    const drawnFrom = JSON.stringify([today, open.length, open.slice(0, 6).map((d) => [d.date, fromTime(d)])]);
+    if (list && drawnFrom !== datesShown) {
+      datesShown = drawnFrom;
       list.textContent = "";
       open.slice(0, 6).forEach((d) => {
         const a = el("a");
@@ -358,18 +378,34 @@
             img.height = p.height;
           }
           const li = el("li");
+          // A photo with no description says nothing to a screen reader: leave it out of the list it hears.
+          if (!img.alt) li.setAttribute("aria-hidden", "true");
           // A photo that fails to load is dropped rather than left as a broken frame.
           img.addEventListener("error", () => {
             li.remove();
             if (!gallery.children.length) $("gallery").hidden = true;
+            tidyGallery();
           });
           img.src = base + "/storage/v1/object/public/photos/" + encodeURIComponent(p.path);
           li.append(img);
           gallery.append(li);
         });
         if (gallery.children.length) $("gallery").hidden = false;
+        tidyGallery();
       })
       .catch(() => {});
+    window.addEventListener("resize", tidyGallery);
+  }
+  // On a phone the photos are one row to swipe; the row takes keyboard focus only where it
+  // really scrolls, so arrow keys can move it. With no described photo the whole section is
+  // decoration and is kept from screen readers.
+  function tidyGallery() {
+    const described = gallery.querySelector("li:not([aria-hidden])");
+    const section = $("gallery");
+    if (described) section.removeAttribute("aria-hidden");
+    else section.setAttribute("aria-hidden", "true");
+    if (described && gallery.scrollWidth > gallery.clientWidth + 1) gallery.tabIndex = 0;
+    else gallery.removeAttribute("tabindex");
   }
 
   // ---------------------------------------------------------------- visit: address, contact, hours

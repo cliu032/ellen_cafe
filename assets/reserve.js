@@ -3,7 +3,6 @@
 // radio buttons drawn as tiles: every choice is visible at once, and they work with a keyboard
 // and a screen reader like any radio group.
 (function () {
-  window.RESERVE_STARTED = true; // tells the inline script in the page head that this one is running
   const C = window.CAFE;
   const R = C.reservation;
   const { fmtTime, fmtDate, shortDate, cafeNow, onDinner, refreshDinner, slots, dinnerNow } = window.CAFE_UTIL;
@@ -51,12 +50,22 @@
     Object.keys(TITLES).forEach((v) => ($(v + "-view").hidden = v !== next));
     $("closed-view").classList.toggle("on", next === "closed"); // see the note in styles.css
     document.title = TITLES[next];
+    if (next === "form" || next === "done") unsent("");
     // When a view replaces the form under someone, or reports a failure, take them to it.
     if (next !== previous && (previous === "form" || next === "failed")) {
       const heading = $(next + "-view").querySelector("h1");
       if (heading) heading.focus();
     }
   }
+  // Said in the view that takes over when a request could not go: without it the guest cannot
+  // tell whether they asked for a table.
+  function unsent(message) {
+    document.querySelectorAll("[data-unsent]").forEach((p) => {
+      p.textContent = message;
+      p.hidden = !message;
+    });
+  }
+  const UNSENT = "Your request was not sent. That date is no longer offered.";
   setTimeout(() => {
     if (view === "loading") $("loading-text").textContent = "Loading…";
   }, 500);
@@ -68,14 +77,18 @@
 
   // ---------------------------------------------------------------- tiles
 
-  // One radio button drawn as a tile. The input carries the spoken name; the drawn face is
-  // hidden from screen readers, so each choice is read once.
+  // One radio button drawn as a tile. The input carries the spoken name, which always starts
+  // with the words on the tile; the drawn face is hidden from screen readers, so each choice
+  // is read once.
   function tile(name, value, main, small, label) {
     const wrap = el("label", null, "chip");
     const input = el("input");
     input.type = "radio";
     input.name = name;
     input.value = value;
+    // The tiles come and go with the clock. A browser that restores form state after Back
+    // would re-tick them by position, not by value; the saved draft restores them instead.
+    input.setAttribute("autocomplete", "off");
     input.setAttribute("aria-label", label || main);
     const face = el("span");
     face.setAttribute("aria-hidden", "true");
@@ -118,27 +131,29 @@
   let showAllDates = false;
   const rowFor = (date) => dinners.find((d) => d.date === date) || null;
   const slotsFor = (date) => slots(rowFor(date));
-  const signature = () => JSON.stringify(openDates.map((d) => [d.date, slots(d)]));
+  // Tonight is still a dinner night, but it is too late to ask for it.
+  const tonightClosed = () => {
+    const tonight = dinnerNow(dinners).tonight;
+    return Boolean(tonight && !slots(tonight).length);
+  };
+  // Everything the tiles and their notes are drawn from. While it is unchanged the form is left alone.
+  const signature = () => JSON.stringify([cafeNow().date, tonightClosed(), openDates.map((d) => [d.date, slots(d)])]);
 
   function buildDates() {
     const keep = chosen("date");
     const today = cafeNow().date;
     dateChips.textContent = "";
     openDates.forEach((d, i) => {
-      const t = tile(
-        "date", d.date,
-        fmtDate(d.date, { day: "numeric", month: "short" }),
-        d.date === today ? "Tonight" : fmtDate(d.date, { weekday: "short" }),
-        (d.date === today ? "Tonight, " : "") + longDate(d.date)
-      );
+      const dayMonth = fmtDate(d.date, { day: "numeric", month: "short" });
+      const over = d.date === today ? "Tonight" : fmtDate(d.date, { weekday: "short" });
+      // Spoken as "Sat 28 Nov, Saturday": what is on the tile, then the day in full.
+      const t = tile("date", d.date, dayMonth, over, over + " " + dayMonth + ", " + fmtDate(d.date, { weekday: "long" }));
       if (i >= FIRST_DATES && !showAllDates && d.date !== keep) t.hidden = true;
       if (d.date === keep) t.firstChild.checked = true;
       dateChips.append(t);
     });
     syncMoreDates();
-    // Tonight is still a dinner night, but it is too late to ask for it.
-    const tonight = dinnerNow(dinners).tonight;
-    $("date-hint").textContent = tonight && !slots(tonight).length ? "Tonight's reservations have closed." : "";
+    $("date-hint").textContent = tonightClosed() ? "Tonight's reservations have closed." : "";
   }
   const syncMoreDates = () => (moreDates.hidden = !dateChips.querySelector(".chip[hidden]"));
   function reveal(date) {
@@ -174,9 +189,12 @@
       if (s === keep) t.firstChild.checked = true;
       timeChips.append(t);
     });
-    timeHint.textContent = dropped && !list.includes(dropped)
-      ? fmtTime(dropped) + " isn't offered on " + shortDate(date) + ". Select a time."
-      : date === cafeNow().date ? TONIGHT_NOTE : "";
+    const tonight = date === cafeNow().date;
+    timeHint.textContent = !dropped || list.includes(dropped)
+      ? tonight ? TONIGHT_NOTE : ""
+      : tonight && dropped < list[0]
+        ? "That time has passed. Select another."
+        : fmtTime(dropped) + " isn't offered " + (tonight ? "tonight" : "on " + shortDate(date)) + ". Select a time.";
     formStatus.textContent = list.length + (list.length === 1 ? " time for " : " times for ") + shortDate(date) + ".";
   }
 
@@ -234,7 +252,8 @@
     } catch (e) { /* nothing to keep */ }
   }
   function showRecord() {
-    const still = sentRequests().filter((r) => rowFor(r.date));
+    const listed = dinnerNow(dinners).listed;
+    const still = sentRequests().filter((r) => listed.some((d) => d.date === r.date));
     const text = still.length
       ? "Already requested: " + still.map((r) => guestsText(r.party) + " · " + shortDate(r.date) + " · " + fmtTime(r.time)).join("; ") + ". We reply by email."
       : "";
@@ -250,6 +269,20 @@
   let started = false; // the form has been drawn once
   let lastSignature = null;
 
+  // A link from the home page names its date in the address (reserve.html#2026-11-28). It is
+  // used once, on arrival, and then taken out of the address: left there it would undo the
+  // guest's own later choice every time the page reloaded.
+  let linkDate = /^#\d{4}-\d{2}-\d{2}$/.test(window.location.hash) ? window.location.hash.slice(1) : "";
+  let choseDate = false; // the guest has picked a date themselves
+  function forgetLink() {
+    linkDate = "";
+    try {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    } catch (e) { /* the address keeps its fragment; nothing reads it again */ }
+  }
+  // With nothing left to request: the walk-in page, unless tonight is still a dinner night.
+  const restView = () => (dinnerNow(dinners).listed.length ? "tonight" : "closed");
+
   onDinner((dates, settled, failed) => {
     if (done) return;
     dinners = dates;
@@ -257,11 +290,14 @@
     showRecord();
     if (!openDates.length) {
       lastSignature = null;
-      if (dates.length) show("tonight"); // dinner tonight, but too late to ask
+      if (restView() === "tonight") show("tonight"); // dinner tonight, but too late to ask
       else if (settled && failed) show("failed"); // could not find out: not the same as "no dates"
       else show("closed"); // no dinner dates: walk-in only
       return;
     }
+
+    // The linked date is not among the current dates: there is nothing to apply.
+    if (linkDate && settled && !openDates.some((d) => d.date === linkDate)) forgetLink();
 
     // Nothing has changed since the form was last drawn: leave it, and the guest's focus, alone.
     const sig = signature();
@@ -276,18 +312,31 @@
     show("form");
     buildDates();
 
+    // The linked date wins over a saved draft. If the dates first shown were remembered ones
+    // that lack it, it is tried again when the current dates arrive.
+    let viaLink = false;
+    if (linkDate && !choseDate) {
+      viaLink = pick("date", linkDate);
+      if (viaLink || settled) forgetLink();
+    }
+
     if (!started) {
       started = true;
-      // A link from the home page names its date in the address; that wins over a saved draft.
-      const fromLink = window.location.hash.slice(1);
-      if (!pick("date", fromLink) && !pick("date", draft.date) && openDates.length === 1) pick("date", openDates[0].date);
+      if (!viaLink && !pick("date", draft.date) && openDates.length === 1) pick("date", openDates[0].date);
       reveal(chosen("date"));
       buildTimes();
       if (draft.time && chosen("date") === draft.date) pick("time", draft.time);
       if (chosen("time") && chosen("date") === cafeNow().date) timeHint.textContent = TONIGHT_NOTE;
+      if (viaLink) saveDraft();
     } else {
-      if (hadDate && !chosen("date")) $("date-error").textContent = "That date is no longer offered.";
+      if (viaLink) {
+        reveal(linkDate || chosen("date"));
+        clearError("date");
+      } else if (hadDate && !chosen("date")) {
+        $("date-error").textContent = "That date is no longer offered.";
+      }
       buildTimes(hadTime);
+      if (viaLink) saveDraft();
       if (held) {
         const group = inputs(held.name).filter((i) => !i.parentElement.hidden);
         const again = group.find((i) => i.value === held.value) || group[0] || inputs("date").find((i) => !i.parentElement.hidden);
@@ -317,6 +366,7 @@
   form.addEventListener("change", (e) => {
     const name = e.target.name;
     if (name === "date") {
+      choseDate = true;
       const had = chosen("time");
       buildTimes(had);
       clearError("date");
@@ -332,7 +382,7 @@
   form.addEventListener("input", (e) => {
     if (e.target.id) clearError(e.target.id);
     if (e.target.id === "email") {
-      suggestBox.textContent = "";
+      clearSuggestion();
       refreshSummary();
     }
     clearSendError();
@@ -397,19 +447,30 @@
     return fixed && fixed !== domain ? email.slice(0, at + 1) + fixed : null;
   }
   const suggestBox = $("email-suggest");
-  let suggestedFor = null; // the address the suggestion was last shown for
-  function suggestEmail() {
-    const value = clean($("email").value);
-    const better = likelyEmail(value);
+  let suggestedFor = null; // the address the send button has already stopped for
+  let suggestionShown = null; // the correction on screen now
+  function clearSuggestion() {
     suggestBox.textContent = "";
-    if (!better) return false;
-    suggestedFor = value;
+    suggestionShown = null;
+  }
+  function suggestEmail() {
+    const better = likelyEmail(clean($("email").value));
+    if (!better) {
+      clearSuggestion();
+      return false;
+    }
+    // Already on screen: leave it be. Rebuilding it as the field loses focus would take the
+    // button out from under the very tap that was aimed at it.
+    if (better === suggestionShown) return true;
+    clearSuggestion();
+    suggestionShown = better;
     const use = el("button", better, "textbtn");
     use.type = "button";
     use.addEventListener("click", () => {
       $("email").value = better;
-      suggestBox.textContent = "";
+      clearSuggestion();
       clearError("email");
+      clearSendError();
       refreshSummary();
       saveDraft();
       formStatus.textContent = "Email changed to " + better + ".";
@@ -479,9 +540,10 @@
   }
   emailInstead.addEventListener("click", () => {
     // The page cannot know whether an email app opened: say what to do either way.
-    errorBox.hidden = true;
     afterEmail.textContent = "Send the email to finish. If no email opened, write to " + C.email + ".";
     afterEmail.hidden = false;
+    afterEmail.focus(); // the link is about to be hidden; keep the guest's place
+    errorBox.hidden = true;
   });
 
   // Each distinct request gets an id made up here. Sending the same request again (a retry
@@ -530,7 +592,7 @@
     openDates = dinners.filter((d) => slots(d).length);
     if (!openDates.length) {
       lastSignature = null;
-      show(dinners.length ? "tonight" : "closed");
+      show(restView());
       return false;
     }
     lastSignature = signature();
@@ -551,7 +613,10 @@
     // Time may have moved on since the tiles were drawn: a chosen time, or the whole evening,
     // can have gone. Redraw first, then say exactly what needs choosing again.
     const before = { date: chosen("date"), time: chosen("time") };
-    if (!redrawFromClock()) return;
+    if (!redrawFromClock()) {
+      unsent(UNSENT);
+      return;
+    }
     const data = { party: chosen("party"), date: chosen("date"), time: chosen("time") };
     TEXT_FIELDS.forEach((f) => (data[f] = clean($(f).value)));
 
@@ -563,8 +628,13 @@
     if (!data.date) flag("date", "Select a date.", firstTile("date"));
     else if (!data.time) flag("time", before.time ? "That time has passed. Select another." : "Select a time.", firstTile("time"));
     ["name", "email", "phone"].forEach((name) => { if (!checkField(name) && !first) first = $(name); });
-    // A likely slip in the address is pointed out once; sending again with it unchanged goes ahead.
-    if (!first && likelyEmail(data.email) && suggestedFor !== data.email && suggestEmail()) first = $("email");
+    // A likely slip in the address stops the send once, whether or not the suggestion was
+    // already on screen (it may not have been seen or heard); sending again with the address
+    // unchanged goes ahead.
+    if (!first && suggestedFor !== data.email && suggestEmail()) {
+      suggestedFor = data.email;
+      first = $("email");
+    }
     const party = Number(data.party);
     if (!first && (!Number.isInteger(party) || party < 1 || party > R.maxParty)) first = firstTile("party");
     if (first) {
@@ -591,11 +661,24 @@
         // The database turned it down: the time has passed, or the owner has changed the dates.
         // Read the dates again and ask for a fresh choice. Emailing the same request would not help.
         await refreshDinner();
-        if (view !== "form") return;
-        inputs("time").forEach((i) => (i.checked = false));
-        if (!redrawFromClock()) return;
-        error.textContent = "That date or time is no longer offered. Select another.";
-        (firstTile(chosen("date") ? "time" : "date") || submitBtn).focus();
+        if (view !== "form") {
+          unsent(UNSENT);
+        } else if (slotsFor(data.date).includes(data.time)) {
+          // Still on offer as far as this page can tell (this device's clock may be wrong, for
+          // one): choosing again would not help, so offer the email instead.
+          fail("Couldn't send. Try again", data);
+        } else {
+          inputs("time").forEach((i) => (i.checked = false));
+          if (!redrawFromClock()) {
+            unsent(UNSENT);
+            return;
+          }
+          // Say it beside the tiles as well: on a phone the line by the button is off screen.
+          if (chosen("date")) $("time-error").textContent = fmtTime(data.time) + " is no longer offered. Select another.";
+          else $("date-error").textContent = "That date is no longer offered.";
+          error.textContent = "That date or time is no longer offered. Select another.";
+          (firstTile(chosen("date") ? "time" : "date") || submitBtn).focus();
+        }
       } else {
         fail("Couldn't send. Try again", data);
       }
@@ -608,4 +691,9 @@
       if (formStatus.textContent === "Sending…") formStatus.textContent = "";
     }
   });
+
+  // Tells the script in the page head that this one is up and running. Set last: if anything
+  // above failed, the head script gives the page's plain message back after a few seconds.
+  window.RESERVE_STARTED = true;
+  document.documentElement.className = "js";
 })();
