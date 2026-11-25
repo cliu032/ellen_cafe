@@ -140,24 +140,38 @@
     return "mailto:" + C.email + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
   }
 
+  // Each distinct request gets an id made up here. Sending the same request again (a retry
+  // after a dropped connection) reuses the id, so the database stores it only once.
+  let lastBody = null;
+  let lastId = null;
+  function requestId(body) {
+    if (body !== lastBody) {
+      lastBody = body;
+      lastId = window.crypto && crypto.randomUUID ? crypto.randomUUID() : null;
+    }
+    return lastId;
+  }
+
   // Stores the request in Supabase. Resolves to the HTTP status; rejects if the network fails.
   // The publishable key goes in the `apikey` header only — it is not a JWT.
   async function saveRequest(data) {
+    const fields = {
+      reservation_date: data.date,
+      reservation_time: data.time,
+      party_size: Number(data.party),
+      name: data.name,
+      email: data.email,
+      phone: data.phone || null,
+      notes: data.notes || null,
+    };
+    const id = requestId(JSON.stringify(fields));
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15000);
     try {
       const res = await fetch(SB.url.replace(/\/+$/, "") + "/rest/v1/reservations", {
         method: "POST",
         headers: { apikey: SB.publishableKey, "Content-Type": "application/json", Prefer: "return=minimal" },
-        body: JSON.stringify({
-          reservation_date: data.date,
-          reservation_time: data.time,
-          party_size: Number(data.party),
-          name: data.name,
-          email: data.email,
-          phone: data.phone || null,
-          notes: data.notes || null,
-        }),
+        body: JSON.stringify(id ? Object.assign({ id }, fields) : fields),
         signal: ctrl.signal,
       });
       return res.status;
@@ -202,11 +216,12 @@
     submitBtn.textContent = "sending…";
     try {
       const status = await saveRequest(data);
-      if (status >= 200 && status < 300) {
+      if ((status >= 200 && status < 300) || status === 409) {
+        // 409: this exact request (same id) is already stored — an earlier try got through.
         showDone(data, "Your request is with us. It isn't confirmed yet — we'll reply to " + data.email + " to confirm.");
       } else if (status === 429) {
         fail("We're getting a lot of requests right now. Please try again later.", data);
-      } else if (status === 400 || status === 403) {
+      } else if (status === 400 || status === 401 || status === 403) {
         // The database turned the details down, e.g. the time has just passed.
         refreshTimes();
         fail("We couldn't take that request. Please check the date, time and your details, then try again.", data);

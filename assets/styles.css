@@ -27,7 +27,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.035em; line-height: 
 
 /* nav */
 .nav { display: flex; justify-content: space-between; align-items: center; padding: 26px 0; }
-.nav .brand { font-size: 22px; font-weight: 700; letter-spacing: -.04em; color: var(--accent); }
+.nav .brand { font-size: 22px; font-weight: 700; font-style: italic; letter-spacing: -.04em; color: var(--accent); }
 .nav ul { display: flex; gap: 28px; list-style: none; margin: 0; padding: 0; }
 .nav ul a { font-size: 14px; }
 .nav ul a:hover, .nav ul a[aria-current] { color: var(--accent); }
@@ -41,7 +41,7 @@ h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.035em; line-height: 
   white-space: nowrap;
   margin: 0 0 0 -.04em;
 }
-.wordmark b { font-weight: inherit; color: var(--accent); }
+.wordmark b { font-weight: inherit; font-style: italic; color: var(--accent); }
 .hero .label { margin: 22px 0 0; }
 .hero p.intro { max-width: 440px; margin: 28px 0 36px; font-size: 17px; line-height: 1.6; }
 
@@ -76,6 +76,14 @@ section h2 { font-size: clamp(36px, 5vw, 56px); color: var(--accent); }
 .hours td { padding: 7px 0; border-bottom: 1px solid var(--line); }
 .hours td:last-child { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 .hours tr.today td { color: var(--accent); font-weight: 500; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
+.gallery-section { padding: 48px 0; }
+.gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.gallery img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; background: var(--line); }
 
 .cta { text-align: center; }
 .cta h2 { margin-bottom: 30px; }
@@ -122,6 +130,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
   .hero { padding: 9vh 0 11vh; }
   section { padding: 64px 0; }
   .split, .visit { grid-template-columns: 1fr; gap: 28px; }
+  .gallery-section { padding: 32px 0; }
+  .gallery { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   form { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .btn { transition: none; } }

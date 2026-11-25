@@ -2,15 +2,17 @@
 --
 -- How it is used
 --   The website sends each request straight to the Data API with the project's publishable
---   key, so it arrives as the `anon` Postgres role. The cafe reads and updates requests in the
---   Supabase dashboard (Table Editor), which is not subject to these restrictions.
+--   key, so it arrives as the `anon` Postgres role. Owners read and answer requests in the
+--   owner area (admin.html, see the next migration) or in the Supabase dashboard.
 --
 -- Security model
 --   * anon can INSERT a request and nothing else: no select, update or delete.
---   * anon can only supply the guest's own columns; id, created_at and status are always
---     set by the database.
+--   * anon can only supply the guest's own columns (plus the row id, see below); created_at and
+--     status are always set by the database.
 --   * Row Level Security only lets through a 'pending' request for a time that is still ahead.
 --   * A trigger tidies the text and applies rate limits.
+--   * Nothing in a reply depends on what other guests have booked, so replies cannot be used
+--     to find out whether someone has a reservation.
 --
 -- Business rules (opening hours, slot length, largest party) live in the website's
 -- assets/config.js. The database enforces safety bounds only, so the two cannot drift apart.
@@ -19,6 +21,8 @@ create schema if not exists private;
 revoke all on schema private from public, anon, authenticated;
 
 create table public.reservations (
+  -- The website makes up the id itself. If a request is sent twice (a retry after a dropped
+  -- connection), the second copy collides on this key instead of creating a duplicate.
   id               uuid primary key default gen_random_uuid(),
   created_at       timestamptz not null default now(),
   reservation_date date not null,
@@ -58,27 +62,35 @@ comment on column public.reservations.reservation_date is 'Date of the visit, in
 comment on column public.reservations.reservation_time is 'Time of the visit, in cafe local time (Australia/Sydney).';
 comment on column public.reservations.status is 'pending | confirmed | declined | cancelled. Set by the cafe.';
 
--- One live request per guest per slot. Cancelled and declined requests do not block a new one.
-create unique index reservations_one_live_request_per_slot
-  on public.reservations (email, reservation_date, reservation_time)
-  where status in ('pending', 'confirmed');
-
 create index reservations_by_date on public.reservations (reservation_date, reservation_time);
-create index reservations_by_created_at on public.reservations (created_at);
+
+-- Rate limiting needs to remember who sent a request recently. One row per accepted website
+-- request; rows are removed after two days. `visitor` is the network address the request
+-- came from (an IPv6 address is shortened to its /64 network), or null if unknown.
+create table private.reservation_log (
+  visitor inet,
+  at      timestamptz not null default now()
+);
+
+comment on table private.reservation_log is
+  'Recent website reservation requests, used only for rate limiting. Emptied of anything older than two days.';
+
+create index reservation_log_by_visitor on private.reservation_log (visitor, at);
+create index reservation_log_by_time on private.reservation_log (at);
 
 -- Tidy guest input, then apply rate limits to requests that come from the website.
 create function private.reservations_before_insert()
 returns trigger
 language plpgsql
-security definer -- needs to count existing rows, which the website role cannot read
+security definer -- reads and writes private.reservation_log, which the website role cannot
 set search_path = ''
 as $$
 declare
   -- The Data API runs each request as one of these roles. The cafe's own inserts from the
-  -- dashboard run as another role and are not limited.
+  -- dashboard run as another role and are neither limited nor logged.
   from_website constant boolean :=
     coalesce(current_setting('role', true), '') in ('anon', 'authenticated');
-  today constant date := (now() at time zone 'Australia/Sydney')::date;
+  this_visitor inet;
   too_many constant text := json_build_object(
     'code', 'RATE_LIMITED',
     'message', 'Too many reservation requests. Please try again later.',
@@ -100,36 +112,45 @@ begin
     return new;
   end if;
 
+  -- Who is asking. Supabase's gateway sets the cf-connecting-ip header itself and refuses
+  -- requests that try to supply their own, so a visitor cannot fake it. (x-forwarded-for
+  -- is not used: a visitor can put anything they like at the front of it.)
+  begin
+    this_visitor := nullif(btrim(
+      nullif(current_setting('request.headers', true), '')::json ->> 'cf-connecting-ip'
+    ), '')::inet;
+    this_visitor := network(
+      set_masklen(this_visitor, case family(this_visitor) when 6 then 64 else 32 end)
+    )::inet;
+  exception when others then
+    this_visitor := null; -- no header, or not an address: only the overall limits apply
+  end;
+
   -- One request at a time through the checks below, so the counts are exact.
   perform pg_advisory_xact_lock(hashtextextended('public.reservations rate limit', 0));
 
-  -- The same guest sending the same request again (double click, retry): accept it without
-  -- storing a second copy. The reply is identical either way, so it reveals nothing about
-  -- who has booked.
-  if exists (
-    select 1
-    from public.reservations r
-    where r.email = new.email
-      and r.reservation_date = new.reservation_date
-      and r.reservation_time = new.reservation_time
-      and r.status in ('pending', 'confirmed')
-  ) then
-    return null;
-  end if;
+  delete from private.reservation_log l where l.at < now() - interval '2 days';
 
-  -- Limits. All three give the same reply.
+  -- Limits: 5 an hour and 15 a day from one visitor; 60 an hour and 300 a day overall.
+  -- Every limit gives the same reply.
   if (
-    select count(*)
-    from public.reservations r
-    where r.email = new.email
-      and r.reservation_date >= today
-      and r.status in ('pending', 'confirmed')
-  ) >= 5
-  or (select count(*) from public.reservations r where r.created_at > now() - interval '1 hour') >= 60
-  or (select count(*) from public.reservations r where r.created_at > now() - interval '1 day') >= 300
+    this_visitor is not null
+    and (
+      (select count(*) from private.reservation_log l
+        where l.visitor = this_visitor and l.at > now() - interval '1 hour') >= 5
+      or (select count(*) from private.reservation_log l
+        where l.visitor = this_visitor and l.at > now() - interval '1 day') >= 15
+    )
+  )
+  or (select count(*) from private.reservation_log l where l.at > now() - interval '1 hour') >= 60
+  or (select count(*) from private.reservation_log l where l.at > now() - interval '1 day') >= 300
   then
     raise sqlstate 'PGRST' using message = too_many, detail = http_429;
   end if;
+
+  -- Counted only if the request is then stored: a row that fails a check below is rolled
+  -- back together with this entry.
+  insert into private.reservation_log (visitor) values (this_visitor);
 
   return new;
 end;
@@ -146,7 +167,7 @@ alter table public.reservations enable row level security;
 
 revoke all on table public.reservations from public, anon, authenticated;
 
-grant insert (reservation_date, reservation_time, party_size, name, email, phone, notes)
+grant insert (id, reservation_date, reservation_time, party_size, name, email, phone, notes)
   on table public.reservations to anon;
 
 grant select, insert, update, delete on table public.reservations to service_role;

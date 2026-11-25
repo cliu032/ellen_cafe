@@ -3,8 +3,8 @@
 window.CAFE = {
   name: "ellen cafe & eatery",
   tagline: "cafe & eatery · alexandria, sydney",
-  intro: "A neighbourhood cafe and eatery across the road from Sydney Park. Open Tuesday to Sunday.",
-  menuNote: "",
+  intro: "A small neighbourhood cafe and eatery near Sydney Park. A short menu, changing specials and coffee, Tuesday to Sunday.",
+  menuNote: "A sample of the menu. Dishes and prices change often, and there are specials most days.", // CHECK
   hoursNote: "",
   reserveIntro:
     "Send a request and we'll reply by email to confirm. Walk-ins are always welcome.",
@@ -19,19 +19,63 @@ window.CAFE = {
   timezone: "Australia/Sydney",
 
   // 0 = Sunday … 6 = Saturday. Use null for a closed day. 24-hour times.
-  // Tue–Sun is from the café's Instagram bio; the times are CHECK (2023 review).
+  // "Tue–Sun" is from the café's Instagram bio. CHECK the times: they come from current
+  // third-party listings (Apple Maps and others), not from the café itself.
   hours: {
-    0: { open: "08:00", close: "14:30" },
+    0: { open: "08:00", close: "15:00" },
     1: null,
     2: { open: "07:30", close: "14:30" },
     3: { open: "07:30", close: "14:30" },
     4: { open: "07:30", close: "14:30" },
     5: { open: "07:30", close: "14:30" },
-    6: { open: "07:30", close: "14:30" },
+    6: { open: "07:30", close: "15:00" },
   },
 
-  // Each item: { name, price (optional), desc (optional) }
-  menu: [],
+  // Each item: { name, price (optional), desc (optional) }. Leave the list empty to hide the menu.
+  // CHECK: taken from customers' photos of the printed menu, which are undated. Replace with
+  // the current menu before going live.
+  menu: [
+    {
+      title: "coffee & drinks",
+      items: [
+        { name: "white, black", price: "5 / 5.5" },
+        { name: "filter", price: "6 / 6.5" },
+        { name: "honeycomb espresso", price: "9" },
+        { name: "tea", price: "6", desc: "breakfast, earl grey, jasmine, oolong" },
+        { name: "hot chocolate", price: "5.5" },
+        { name: "cold press seasonal juice", price: "8" },
+        { name: "grapefruit soda", price: "9" },
+      ],
+    },
+    {
+      title: "before 11am",
+      items: [
+        { name: "black forest bacon & egg roll", price: "13", desc: "bacon XO, bbq sauce, pickle" },
+        { name: "scrambled egg & sourdough", price: "18", desc: "tomato, sautéed mushrooms" },
+      ],
+    },
+    {
+      title: "brunch",
+      items: [
+        { name: "fries, seaweed seasoning", price: "7" },
+        { name: "poached chicken sandwich", price: "18", desc: "roasted garlic aioli, jalapeño, rocket" },
+        { name: "strawberry & pistachio", price: "19", desc: "muesli, greek yoghurt, buckwheat, basil" },
+        { name: "fish burger", price: "19", desc: "pickle, mustard, cheddar, horseradish mayo, lettuce" },
+        { name: "avocado & soft boiled egg", price: "23", desc: "cashew, crouton, pecorino, salsa verde" },
+        { name: "green peas & steam prawn", price: "26", desc: "63c egg, horseradish mayonnaise, sourdough" },
+        { name: "prawn pasta", price: "32", desc: "shellfish bisque, grape tomato, prawn oil vinaigrette, tarragon" },
+      ],
+    },
+    {
+      title: "after 11am & sweets",
+      items: [
+        { name: "kransky sausage", price: "25", desc: "sauerkraut, hash brown, yellow mustard, fried egg" },
+        { name: "wagyu rump cap steak", price: "47", desc: "pepper purée, turkish chilli, green peppercorn jus" },
+        { name: "canelé", price: "7" },
+        { name: "custard, grand marnier", price: "9" },
+      ],
+    },
+  ],
 
   // Reservation requests are stored in the Supabase project below (table public.reservations).
   // Both values are safe to publish: the key can only add a request, never read one.

@@ -99,6 +99,38 @@
     }
   }
 
+  // Photos the owner has uploaded (see admin.html). The section stays hidden if there are
+  // none, or if they cannot be fetched.
+  const gallery = $("gallery-list");
+  const SB = C.supabase || {};
+  if (gallery && SB.url && SB.publishableKey) {
+    const base = SB.url.replace(/\/+$/, "");
+    fetch(base + "/rest/v1/photos?select=path,alt,width,height&order=sort_order.asc,created_at.asc&limit=12", {
+      headers: { apikey: SB.publishableKey },
+    })
+      .then((res) => (res.ok ? res.json() : []))
+      .then((rows) => {
+        if (!Array.isArray(rows)) return;
+        rows.forEach((p) => {
+          if (!p || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(p.path)) return;
+          const img = el("img");
+          img.src = base + "/storage/v1/object/public/photos/" + encodeURIComponent(p.path);
+          img.alt = typeof p.alt === "string" ? p.alt : "";
+          img.loading = "lazy";
+          img.decoding = "async";
+          if (p.width > 0 && p.height > 0) {
+            img.width = p.width;
+            img.height = p.height;
+          }
+          const li = el("li");
+          li.append(img);
+          gallery.append(li);
+        });
+        if (gallery.children.length) $("gallery").hidden = false;
+      })
+      .catch(() => {});
+  }
+
   const hours = $("hours");
   if (hours) {
     const today = cafeNow().weekday;
