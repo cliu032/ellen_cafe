@@ -6,15 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
-  <!-- This page shows guests' contact details, so it only runs its own scripts, and apart from the web font it only talks to Supabase. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'">
+  <!-- This page shows guests' contact details, so it only runs its own scripts and only talks to Supabase. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob: https://*.supabase.co; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'">
   <meta name="theme-color" content="#f3efe4">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;1,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/styles.css">
-  <link rel="stylesheet" href="assets/admin.css">
+  <meta name="color-scheme" content="only light">
+  <link rel="stylesheet" href="assets/styles.css?v=5">
+  <link rel="stylesheet" href="assets/admin.css?v=5">
 </head>
 <body>
   <div class="wrap">
@@ -121,13 +119,13 @@
     </main>
 
     <footer>
-      <span>© <span id="year"></span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
-      <a class="link" id="ig" target="_blank" rel="noopener"></a>
+      <span>© <span id="year">2026</span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
+      <a class="link" id="ig" href="https://www.instagram.com/ellen_cafe/" target="_blank" rel="noopener">instagram @ellen_cafe</a>
     </footer>
   </div>
-  <script src="assets/config.js"></script>
-  <script src="assets/site.js"></script>
+  <script src="assets/config.js?v=5"></script>
+  <script src="assets/site.js?v=5"></script>
   <script src="assets/vendor/supabase-2.119.0.js"></script>
-  <script src="assets/admin.js"></script>
+  <script src="assets/admin.js?v=5"></script>
 </body>
 </html>

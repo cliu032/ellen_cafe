@@ -10,7 +10,8 @@ JavaScript with no build step, backed by a Supabase project for reservations and
 | `admin.html` | Owner area: answer reservation requests, pick dinner dates, manage the photos |
 
 The look follows the café's logo: cream ground, rust-brown lowercase sans-serif, and the
-"caf·elle·atery·n" wordmark as the hero.
+"caf·elle·atery·n" wordmark as the hero. The font (Inter) is served from `assets/fonts/`, so
+the public pages load nothing from other sites except the dinner dates and photos from Supabase.
 
 ## How the café works, and what the site does about it
 
@@ -21,6 +22,10 @@ The look follows the café's logo: cream ground, rust-brown lowercase sans-serif
   site takes no reservations and does not mention dinner: the "reserve" links are hidden and
   `reserve.html` says "walk-in only". As soon as a date is added they appear, and the form
   offers exactly the dates and times the owner chose.
+- **The site follows the clock.** The line under the wordmark says whether the café is open
+  ("Open until 2:30pm", "Closed · dinner from 5:30pm"). When tonight's last bookable time has
+  passed, tonight drops off the form, and the "reserve" links go once no evening is left.
+  An open page updates itself every minute.
 
 ### Offering dinner
 
@@ -29,8 +34,14 @@ the calendar. Select a date again (or use "remove") to take it off. Each date's 
 changed in the list below the calendar. Removing a date that already has requests leaves
 those requests in **reservations**, so the guests can be told.
 
-The remaining rules for the form — slot length, same-day notice and the largest party — are in
-the `reservation` block of `assets/config.js`.
+The remaining rules for the form are in the `reservation` block of `assets/config.js`:
+
+| Setting | Meaning |
+| --- | --- |
+| `slotMinutes` | Gap between offered times (30) |
+| `minNoticeMinutes` | How far ahead a same-day time must be to be offered (60) |
+| `sameDayCloses` | A time such as `"15:00"` after which tonight can no longer be requested; `null` for no cut-off |
+| `maxParty` | Largest party the form takes (8); bigger groups are pointed to email |
 
 ## Run locally
 
@@ -41,12 +52,20 @@ Then open http://localhost:8000. The pages talk to the live Supabase project nam
 
 ## Edit the content
 
-Café details — intro text, address, email, opening hours, menu — live in `assets/config.js`.
-Lines marked `CHECK` come from public sources and should be confirmed. The menu section stays
-hidden while `menu` is empty.
+Café details — the short lines of text, address, email, opening hours, menu — live in
+`assets/config.js`. Lines marked `CHECK` come from public sources and should be confirmed. The
+menu section stays hidden while `menu` is empty.
 
-The address, email and "open Tuesday to Sunday" are also written into `index.html` itself, so
-they show even if JavaScript does not run. If any of those change, change them in both places.
+- `hoursConfirmed`: while `true` the site states exact opening times and an "open now" line.
+  Set it to `false` to show only "Tuesday to Sunday" until the times have been confirmed.
+- The address, email and "Tuesday to Sunday" are also written into `index.html` and
+  `reserve.html` themselves, so they show even if JavaScript does not run. If any of those
+  change, change them in both places.
+- The pages load their files as `styles.css?v=5`, `site.js?v=5` and so on. After changing a
+  file in `assets/`, raise that number in the three HTML files so returning visitors get the
+  new version straight away.
+- Link previews (`og:url`, `og:image` in each page's `<head>`) use the full
+  `cliu032.github.io/ellen_cafe` address. Change them if the site moves to its own domain.
 
 ## Reservations
 
@@ -66,6 +85,9 @@ until an owner confirms it.
   request in `private.reservation_log`; entries older than two days are cleared whenever a new
   request is accepted.
 - If a request cannot be stored, the form offers to send it by email instead.
+- The guest's browser keeps a half-filled form until the tab closes, and a note of what was
+  requested (party, date and time only), so a reload neither loses their typing nor hides
+  that they have already asked.
 
 Nothing notifies the café when a request arrives. Someone has to open the owner area to see
 it — see "Not built yet" below.
@@ -140,7 +162,7 @@ Build and deployment → Source: GitHub Actions.
 ## Not built yet
 
 - **Notifications.** New requests do not email or message anyone. Until that exists, check
-  the owner area regularly, or the "we'll email you to confirm" promise on the form is not kept.
+  the owner area regularly, or the "We reply by email" promise on the form is not kept.
 - **Bot protection.** The rate limits cap abuse but there is no CAPTCHA; someone with many
   network addresses could still fill the hourly allowance and make real guests wait.
 - **Availability.** The form does not know how full dinner is; every request is a request.

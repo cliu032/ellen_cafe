@@ -1,11 +1,12 @@
-// Dinner reservation form. Dinner runs only on evenings the owner has picked, so the page
-// lists those dates; with none, it keeps its walk-in message. Guests, date and time are groups
-// of radio buttons drawn as tiles: every choice is visible at once, and they work with a
-// keyboard and a screen reader like any radio group.
+// Dinner reservations. Dinner runs only on evenings the owner has picked, so this page offers
+// exactly those dates; with none it says "walk-in only". Guests, date and time are groups of
+// radio buttons drawn as tiles: every choice is visible at once, and they work with a keyboard
+// and a screen reader like any radio group.
 (function () {
+  window.RESERVE_STARTED = true; // tells the inline script in the page head that this one is running
   const C = window.CAFE;
   const R = C.reservation;
-  const { fmtTime, toMin, fmtDate, shortDate, cafeNow, onDinner } = window.CAFE_UTIL;
+  const { fmtTime, fmtDate, shortDate, cafeNow, onDinner, refreshDinner, slots, dinnerNow } = window.CAFE_UTIL;
   const $ = (id) => document.getElementById(id);
   const el = (tag, text, cls) => {
     const n = document.createElement(tag);
@@ -15,54 +16,81 @@
   };
   const form = $("reserve-form");
   const error = $("error");
+  const errorEnd = $("error-end");
+  const errorBox = error.parentElement;
+  const afterEmail = $("after-email");
   const submitBtn = $("submit");
   const SUBMIT_LABEL = submitBtn.textContent;
   const emailInstead = $("email-instead");
+  const formStatus = $("form-status");
   const SB = C.supabase || {};
   const DRAFT_KEY = "ellen.reserve.draft";
+  const RECORD_KEY = "ellen.requests";
   const FIRST_DATES = 8; // dates shown before "more dates"
 
-  const pad = (n) => String(n).padStart(2, "0");
-  const fromMin = (m) => pad(Math.floor(m / 60)) + ":" + pad(m % 60);
   const longDate = (s) => fmtDate(s, { weekday: "long", day: "numeric", month: "long" });
   const guestsText = (n) => n + (Number(n) === 1 ? " guest" : " guests");
+  const TONIGHT_NOTE = "For tonight, wait for our email before you come.";
 
-  // The evenings on offer, as read from Supabase: [{ date, first, last }].
-  let dinners = [];
-  const dinnerOn = (date) => dinners.find((d) => d.date === date) || null;
+  // ---------------------------------------------------------------- which view
 
-  // Times that can still be asked for on a date. On the day itself, only those far enough ahead.
-  function slotsFor(date) {
-    const d = dinnerOn(date);
-    if (!d) return [];
-    const now = cafeNow();
-    if (date < now.date) return [];
-    const earliest = date === now.date ? now.minutes + R.minNoticeMinutes : 0;
-    const slots = [];
-    for (let m = toMin(d.first); m <= toMin(d.last); m += R.slotMinutes) if (m >= earliest) slots.push(fromMin(m));
-    return slots;
+  // loading → one of: closed (walk-in only) · failed (couldn't find out) · tonight (dinner
+  // tonight, too late to ask) · form → done.
+  const TITLES = {
+    loading: C.name,
+    failed: C.name,
+    closed: "Walk-in only — " + C.name,
+    tonight: "Reservations — " + C.name,
+    form: "Reservations — " + C.name,
+    done: "Request sent — " + C.name,
+  };
+  let view = "loading";
+  function show(next) {
+    const previous = view;
+    view = next;
+    Object.keys(TITLES).forEach((v) => ($(v + "-view").hidden = v !== next));
+    $("closed-view").classList.toggle("on", next === "closed"); // see the note in styles.css
+    document.title = TITLES[next];
+    // When a view replaces the form under someone, or reports a failure, take them to it.
+    if (next !== previous && (previous === "form" || next === "failed")) {
+      const heading = $(next + "-view").querySelector("h1");
+      if (heading) heading.focus();
+    }
   }
+  setTimeout(() => {
+    if (view === "loading") $("loading-text").textContent = "Loading…";
+  }, 500);
+  $("try-again").addEventListener("click", () => window.location.reload());
+  document.querySelectorAll("[data-mail]").forEach((a) => {
+    a.href = "mailto:" + C.email;
+    a.textContent = C.email;
+  });
 
-  // One radio button drawn as a tile. `small` is an optional line above the main text.
+  // ---------------------------------------------------------------- tiles
+
+  // One radio button drawn as a tile. The input carries the spoken name; the drawn face is
+  // hidden from screen readers, so each choice is read once.
   function tile(name, value, main, small, label) {
     const wrap = el("label", null, "chip");
     const input = el("input");
     input.type = "radio";
     input.name = name;
     input.value = value;
-    if (label) input.setAttribute("aria-label", label);
+    input.setAttribute("aria-label", label || main);
     const face = el("span");
+    face.setAttribute("aria-hidden", "true");
     if (small) face.append(el("small", small));
     face.append(el("b", main));
     wrap.append(input, face);
     return wrap;
   }
+  const inputs = (name) => Array.from(form.querySelectorAll('input[name="' + name + '"]'));
   const chosen = (name) => {
     const input = form.querySelector('input[name="' + name + '"]:checked');
     return input ? input.value : "";
   };
   const pick = (name, value) => {
-    const input = Array.from(form.querySelectorAll('input[name="' + name + '"]')).find((i) => i.value === value);
+    const input = inputs(name).find((i) => i.value === value);
     if (input) input.checked = true;
     return Boolean(input);
   };
@@ -85,14 +113,18 @@
   const moreDates = $("more-dates");
   const timeChips = $("time-chips");
   const timeHint = $("time-hint");
+  let dinners = []; // every evening from today on: [{ date, first, last }]
+  let openDates = []; // those that can still be requested
   let showAllDates = false;
+  const rowFor = (date) => dinners.find((d) => d.date === date) || null;
+  const slotsFor = (date) => slots(rowFor(date));
+  const signature = () => JSON.stringify(openDates.map((d) => [d.date, slots(d)]));
 
   function buildDates() {
     const keep = chosen("date");
     const today = cafeNow().date;
-    const open = dinners.filter((d) => slotsFor(d.date).length);
     dateChips.textContent = "";
-    open.forEach((d, i) => {
+    openDates.forEach((d, i) => {
       const t = tile(
         "date", d.date,
         fmtDate(d.date, { day: "numeric", month: "short" }),
@@ -103,46 +135,66 @@
       if (d.date === keep) t.firstChild.checked = true;
       dateChips.append(t);
     });
-    moreDates.hidden = !dateChips.querySelector(".chip[hidden]");
+    syncMoreDates();
+    // Tonight is still a dinner night, but it is too late to ask for it.
+    const tonight = dinnerNow(dinners).tonight;
+    $("date-hint").textContent = tonight && !slots(tonight).length ? "Tonight's reservations have closed." : "";
   }
-
+  const syncMoreDates = () => (moreDates.hidden = !dateChips.querySelector(".chip[hidden]"));
+  function reveal(date) {
+    const input = inputs("date").find((i) => i.value === date);
+    if (input) input.parentElement.hidden = false;
+    syncMoreDates();
+  }
   moreDates.addEventListener("click", () => {
     const firstNew = dateChips.querySelector(".chip[hidden] input");
     showAllDates = true;
     dateChips.querySelectorAll(".chip[hidden]").forEach((t) => (t.hidden = false));
-    moreDates.hidden = true;
+    syncMoreDates();
     if (firstNew) firstNew.focus();
   });
 
-  function buildTimes() {
+  // `dropped` is a time the guest had chosen that the newly chosen date does not offer.
+  function buildTimes(dropped) {
     const date = chosen("date");
     const keep = chosen("time");
     timeChips.textContent = "";
+    formStatus.textContent = "";
     if (!date) {
-      timeHint.textContent = "Select a date.";
+      timeHint.textContent = "Select a date first.";
       return;
     }
-    const slots = slotsFor(date);
-    if (!slots.length) {
+    const list = slotsFor(date);
+    if (!list.length) {
       timeHint.textContent = "No times left. Select another date.";
       return;
     }
-    timeHint.textContent = "";
-    slots.forEach((s) => {
+    list.forEach((s) => {
       const t = tile("time", s, fmtTime(s));
       if (s === keep) t.firstChild.checked = true;
       timeChips.append(t);
     });
+    timeHint.textContent = dropped && !list.includes(dropped)
+      ? fmtTime(dropped) + " isn't offered on " + shortDate(date) + ". Select a time."
+      : date === cafeNow().date ? TONIGHT_NOTE : "";
+    formStatus.textContent = list.length + (list.length === 1 ? " time for " : " times for ") + shortDate(date) + ".";
   }
 
-  // ---------------------------------------------------------------- summary and draft
+  // ---------------------------------------------------------------- summary, draft, record
 
+  const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const clean = (v) => v.trim().replace(/[ \t]+/g, " ");
   const summaryLine = $("summary-line");
+  const replyTo = $("reply-to");
   function refreshSummary() {
     const date = chosen("date");
     const time = chosen("time");
     summaryLine.textContent = date && time ? guestsText(chosen("party")) + " · " + shortDate(date) + " · " + fmtTime(time) : "";
     summaryLine.hidden = !summaryLine.textContent;
+    // The reply goes to one address: show it again where it will be read before sending.
+    const email = clean($("email").value);
+    replyTo.textContent = EMAIL_OK.test(email) ? "Reply to " + email : "";
+    replyTo.hidden = !replyTo.textContent;
   }
 
   // What has been filled in is kept for this tab, so a reload or a trip back does not lose it.
@@ -161,38 +213,87 @@
       return {};
     }
   }
-
   const draft = loadDraft();
   pick("party", draft.party) || pick("party", String(Math.min(2, R.maxParty)));
   TEXT_FIELDS.forEach((f) => { if (typeof draft[f] === "string") $(f).value = draft[f]; });
-  let draftChoice = { date: draft.date, time: draft.time };
 
-  // ---------------------------------------------------------------- which view
-
-  const closedView = $("closed-view");
-  const formView = $("form-view");
-  const doneView = $("done-view");
-  let done = false;
-
-  // Until the dinner dates are known there is nothing true to show, so show nothing yet.
-  closedView.hidden = true;
-
-  onDinner((dates, settled) => {
-    dinners = dates;
-    if (done) return;
-    const any = dinners.some((d) => slotsFor(d.date).length);
-    if (!any && !settled) return; // still waiting for the current dates
-    closedView.hidden = any;
-    formView.hidden = !any;
-    if (!any) return;
-    buildDates();
-    if (draftChoice.date && pick("date", draftChoice.date)) {
-      const tileEl = form.querySelector('input[name="date"]:checked').parentElement;
-      tileEl.hidden = false;
+  // A short note of requests already sent from this browser — guests, date and time only, no
+  // name or contact details — so a guest who comes back can see they have already asked.
+  function sentRequests() {
+    try {
+      const list = JSON.parse(localStorage.getItem(RECORD_KEY));
+      return Array.isArray(list) ? list.filter((r) => r && r.date && r.time && r.party) : [];
+    } catch (e) {
+      return [];
     }
-    buildTimes();
-    if (draftChoice.time) pick("time", draftChoice.time);
-    draftChoice = {};
+  }
+  function noteRequest(data) {
+    try {
+      const list = [{ party: data.party, date: data.date, time: data.time }].concat(sentRequests()).slice(0, 5);
+      localStorage.setItem(RECORD_KEY, JSON.stringify(list));
+    } catch (e) { /* nothing to keep */ }
+  }
+  function showRecord() {
+    const still = sentRequests().filter((r) => rowFor(r.date));
+    const text = still.length
+      ? "Already requested: " + still.map((r) => guestsText(r.party) + " · " + shortDate(r.date) + " · " + fmtTime(r.time)).join("; ") + ". We reply by email."
+      : "";
+    document.querySelectorAll("[data-record]").forEach((p) => {
+      p.textContent = text;
+      p.hidden = !text;
+    });
+  }
+
+  // ---------------------------------------------------------------- the dates arrive
+
+  let done = false;
+  let started = false; // the form has been drawn once
+  let lastSignature = null;
+
+  onDinner((dates, settled, failed) => {
+    if (done) return;
+    dinners = dates;
+    openDates = dates.filter((d) => slots(d).length);
+    showRecord();
+    if (!openDates.length) {
+      lastSignature = null;
+      if (dates.length) show("tonight"); // dinner tonight, but too late to ask
+      else if (settled && failed) show("failed"); // could not find out: not the same as "no dates"
+      else show("closed"); // no dinner dates: walk-in only
+      return;
+    }
+
+    // Nothing has changed since the form was last drawn: leave it, and the guest's focus, alone.
+    const sig = signature();
+    if (view === "form" && sig === lastSignature) return;
+    lastSignature = sig;
+
+    const active = document.activeElement;
+    const held = active && form.contains(active) && (active.name === "date" || active.name === "time")
+      ? { name: active.name, value: active.value } : null;
+    const hadDate = chosen("date");
+    const hadTime = chosen("time");
+    show("form");
+    buildDates();
+
+    if (!started) {
+      started = true;
+      // A link from the home page names its date in the address; that wins over a saved draft.
+      const fromLink = window.location.hash.slice(1);
+      if (!pick("date", fromLink) && !pick("date", draft.date) && openDates.length === 1) pick("date", openDates[0].date);
+      reveal(chosen("date"));
+      buildTimes();
+      if (draft.time && chosen("date") === draft.date) pick("time", draft.time);
+      if (chosen("time") && chosen("date") === cafeNow().date) timeHint.textContent = TONIGHT_NOTE;
+    } else {
+      if (hadDate && !chosen("date")) $("date-error").textContent = "That date is no longer offered.";
+      buildTimes(hadTime);
+      if (held) {
+        const group = inputs(held.name).filter((i) => !i.parentElement.hidden);
+        const again = group.find((i) => i.value === held.value) || group[0] || inputs("date").find((i) => !i.parentElement.hidden);
+        if (again) again.focus();
+      }
+    }
     refreshSummary();
   });
 
@@ -205,32 +306,66 @@
     const input = $(name);
     if (input) input.removeAttribute("aria-invalid");
   }
+  function clearSendError() {
+    error.textContent = "";
+    errorEnd.textContent = "";
+    emailInstead.hidden = true;
+    errorBox.hidden = false;
+    afterEmail.hidden = true;
+  }
 
   form.addEventListener("change", (e) => {
     const name = e.target.name;
     if (name === "date") {
-      buildTimes();
+      const had = chosen("time");
+      buildTimes(had);
       clearError("date");
       if (!chosen("time")) clearError("time");
     }
-    if (name === "time") clearError("time");
+    if (name === "time") {
+      clearError("time");
+      timeHint.textContent = chosen("date") === cafeNow().date ? TONIGHT_NOTE : "";
+    }
     refreshSummary();
     saveDraft();
   });
   form.addEventListener("input", (e) => {
     if (e.target.id) clearError(e.target.id);
-    error.textContent = "";
-    emailInstead.hidden = true;
+    if (e.target.id === "email") {
+      suggestBox.textContent = "";
+      refreshSummary();
+    }
+    clearSendError();
     if (TEXT_FIELDS.includes(e.target.id)) saveDraft();
   });
 
-  // A text field is checked when the visitor leaves it, so a slip is caught while in view.
+  // Enter chooses a tile or moves to the next field. Only the button sends the request.
+  const NEXT_FIELD = { name: "email", email: "phone", phone: "notes" };
+  form.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    const t = e.target;
+    if (t.type === "radio") {
+      e.preventDefault();
+      if (!t.checked) {
+        t.checked = true;
+        t.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+    } else if (NEXT_FIELD[t.id]) {
+      e.preventDefault();
+      $(NEXT_FIELD[t.id]).focus();
+    }
+  });
+  // Pressing the button must not first move focus off a field: its check on leaving could
+  // shift the button from under the tap, and the tap would be lost.
+  submitBtn.addEventListener("mousedown", (e) => e.preventDefault());
+
+  // ---------------------------------------------------------------- checking the details
+
   const CHECKS = {
     name: (v) => (v ? "" : "Enter your name."),
-    email: (v) => (!v ? "Enter your email." : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? "" : "Check the email address."),
-    phone: (v) => (!v || /^[0-9+() .-]{5,30}$/.test(v) ? "" : "Digits only, or leave blank."),
+    email: (v) => (!v ? "Enter your email." : EMAIL_OK.test(v) ? "" : "Check the email address."),
+    phone: (v) => (!v || (/^[0-9+() .-]{5,30}$/.test(v) && v.replace(/\D/g, "").length >= 8) ? "" : "Check the phone number."),
   };
-  const clean = (v) => v.trim().replace(/[ \t]+/g, " ");
   function checkField(name) {
     const input = $(name);
     const message = CHECKS[name](clean(input.value));
@@ -239,34 +374,69 @@
     else input.removeAttribute("aria-invalid");
     return !message;
   }
-  Object.keys(CHECKS).forEach((name) => {
-    $(name).addEventListener("blur", () => { if ($(name).value.trim()) checkField(name); });
-  });
 
-  // Returns the first control that needs attention, or null when everything is in order.
-  function validate(data) {
-    let first = null;
-    const flag = (name, message, focusEl) => {
-      $(FIELD_ERRORS[name]).textContent = message;
-      if (!first) first = focusEl;
-    };
-    const slots = slotsFor(data.date);
-    if (!data.date || !slots.length) {
-      flag("date", "Select a date.", dateChips.querySelector(".chip:not([hidden]) input"));
-    } else if (!slots.includes(data.time)) {
-      flag("time", "Select a time.", timeChips.querySelector("input"));
+  // The reply depends on one address. Catch the common slips and offer the fix; never insist.
+  const DOMAIN_SLIPS = {
+    "gmial.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com", "gnail.com": "gmail.com",
+    "gmal.com": "gmail.com", "gmail.con": "gmail.com", "gmail.co": "gmail.com",
+    "hotmial.com": "hotmail.com", "hotmal.com": "hotmail.com", "hotmail.con": "hotmail.com",
+    "outlok.com": "outlook.com", "outlook.con": "outlook.com",
+    "icould.com": "icloud.com", "iclould.com": "icloud.com", "icloud.con": "icloud.com",
+    "yaho.com": "yahoo.com", "yahoo.con": "yahoo.com",
+  };
+  const ENDING_SLIPS = [[/\.con\.au$/, ".com.au"], [/\.com\.a$/, ".com.au"], [/\.con$/, ".com"], [/\.cmo$/, ".com"]];
+  function likelyEmail(email) {
+    if (!EMAIL_OK.test(email)) return null;
+    const at = email.lastIndexOf("@");
+    const domain = email.slice(at + 1).toLowerCase();
+    let fixed = DOMAIN_SLIPS[domain];
+    if (!fixed) {
+      const ending = ENDING_SLIPS.find(([from]) => from.test(domain));
+      if (ending) fixed = domain.replace(ending[0], ending[1]);
     }
-    ["name", "email", "phone"].forEach((name) => { if (!checkField(name) && !first) first = $(name); });
-    const party = Number(data.party);
-    if (!first && (!Number.isInteger(party) || party < 1 || party > R.maxParty)) first = partyChips.querySelector("input");
-    return first;
+    return fixed && fixed !== domain ? email.slice(0, at + 1) + fixed : null;
   }
+  const suggestBox = $("email-suggest");
+  let suggestedFor = null; // the address the suggestion was last shown for
+  function suggestEmail() {
+    const value = clean($("email").value);
+    const better = likelyEmail(value);
+    suggestBox.textContent = "";
+    if (!better) return false;
+    suggestedFor = value;
+    const use = el("button", better, "textbtn");
+    use.type = "button";
+    use.addEventListener("click", () => {
+      $("email").value = better;
+      suggestBox.textContent = "";
+      clearError("email");
+      refreshSummary();
+      saveDraft();
+      formStatus.textContent = "Email changed to " + better + ".";
+      $("phone").focus();
+    });
+    suggestBox.append("Did you mean ", use, "?");
+    return true;
+  }
+
+  ["name", "email", "phone"].forEach((name) => {
+    $(name).addEventListener("blur", () => {
+      if (!$(name).value.trim()) return;
+      const ok = checkField(name);
+      if (name === "email") {
+        refreshSummary();
+        if (ok) suggestEmail();
+      }
+    });
+  });
 
   // ---------------------------------------------------------------- sending
 
   function showDone(data) {
     done = true;
-    $("done-text").textContent = "Thank you, " + data.name.split(" ")[0] + ". We'll confirm by email at " + data.email + ".";
+    noteRequest(data);
+    $("done-text").textContent =
+      "Thank you. We'll reply to " + data.email + "." + (data.date === cafeNow().date ? " " + TONIGHT_NOTE : "");
     const dl = $("summary");
     dl.textContent = "";
     [["Guests", data.party], ["Date", longDate(data.date)], ["Time", fmtTime(data.time)], ["Name", data.name]].forEach(([k, v]) => {
@@ -276,23 +446,19 @@
     });
     const next = $("done-next");
     next.textContent = "";
-    next.append("To change or cancel, email ");
+    next.append("Reserved once we confirm. No automatic email is sent, and our reply may land in junk. To change or cancel, email ");
     const mail = el("a", C.email, "link");
     mail.href = "mailto:" + C.email;
     next.append(mail, ".");
-    formView.hidden = true;
-    closedView.hidden = true;
-    doneView.hidden = false;
+    show("done");
+    window.scrollTo({ top: 0, behavior: "instant" });
     $("done-title").focus();
-    window.scrollTo(0, 0);
     try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) { /* nothing stored */ }
   }
 
   // The request as an email, for when it cannot be stored.
   function mailtoFor(data) {
     const body = [
-      "Dinner reservation request",
-      "",
       "Guests: " + data.party,
       "Date: " + longDate(data.date),
       "Time: " + fmtTime(data.time),
@@ -301,9 +467,22 @@
       data.phone ? "Phone: " + data.phone : null,
       data.notes ? "Notes: " + data.notes : null,
     ].filter((l) => l !== null).join("\r\n");
-    const subject = "Dinner reservation request: " + shortDate(data.date) + ", " + fmtTime(data.time) + ", " + guestsText(data.party);
+    const subject = "Dinner request · " + guestsText(data.party) + " · " + shortDate(data.date) + " · " + fmtTime(data.time);
     return "mailto:" + C.email + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
   }
+  // "Couldn't send. Try again, or email it instead." — the last words are the link.
+  function fail(before, data) {
+    error.textContent = before + ", or ";
+    emailInstead.href = mailtoFor(data);
+    emailInstead.hidden = false;
+    errorEnd.textContent = ".";
+  }
+  emailInstead.addEventListener("click", () => {
+    // The page cannot know whether an email app opened: say what to do either way.
+    errorBox.hidden = true;
+    afterEmail.textContent = "Send the email to finish. If no email opened, write to " + C.email + ".";
+    afterEmail.hidden = false;
+  });
 
   // Each distinct request gets an id made up here. Sending the same request again (a retry
   // after a dropped connection) reuses the id, so the database stores it only once.
@@ -345,54 +524,88 @@
     }
   }
 
-  function fail(message, data) {
-    error.textContent = message;
-    emailInstead.href = mailtoFor(data);
-    emailInstead.hidden = false;
+  // Draw the tiles again from the clock. Returns false if nothing can be requested any more
+  // (the page has then moved to another view).
+  function redrawFromClock(droppedTime) {
+    openDates = dinners.filter((d) => slots(d).length);
+    if (!openDates.length) {
+      lastSignature = null;
+      show(dinners.length ? "tonight" : "closed");
+      return false;
+    }
+    lastSignature = signature();
+    buildDates();
+    buildTimes(droppedTime);
+    refreshSummary();
+    saveDraft();
+    return true;
   }
+  const firstTile = (name) => inputs(name).find((i) => !i.parentElement.hidden) || null;
 
   let sending = false;
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (sending) return;
-    error.textContent = "";
-    emailInstead.hidden = true;
+    clearSendError();
+
+    // Time may have moved on since the tiles were drawn: a chosen time, or the whole evening,
+    // can have gone. Redraw first, then say exactly what needs choosing again.
+    const before = { date: chosen("date"), time: chosen("time") };
+    if (!redrawFromClock()) return;
     const data = { party: chosen("party"), date: chosen("date"), time: chosen("time") };
     TEXT_FIELDS.forEach((f) => (data[f] = clean($(f).value)));
-    const problem = validate(data);
-    if (problem) {
+
+    let first = null;
+    const flag = (name, message, focusEl) => {
+      $(FIELD_ERRORS[name]).textContent = message;
+      if (!first) first = focusEl || submitBtn;
+    };
+    if (!data.date) flag("date", "Select a date.", firstTile("date"));
+    else if (!data.time) flag("time", before.time ? "That time has passed. Select another." : "Select a time.", firstTile("time"));
+    ["name", "email", "phone"].forEach((name) => { if (!checkField(name) && !first) first = $(name); });
+    // A likely slip in the address is pointed out once; sending again with it unchanged goes ahead.
+    if (!first && likelyEmail(data.email) && suggestedFor !== data.email && suggestEmail()) first = $("email");
+    const party = Number(data.party);
+    if (!first && (!Number.isInteger(party) || party < 1 || party > R.maxParty)) first = firstTile("party");
+    if (first) {
       error.textContent = "Check the details above.";
-      problem.focus();
-      const group = problem.closest(".group");
-      if (group && group.scrollIntoView) group.scrollIntoView({ block: "start", behavior: "auto" });
+      first.focus();
+      const group = first.closest(".group");
+      if (group && group.scrollIntoView) group.scrollIntoView({ block: "start", behavior: "instant" });
       return;
     }
 
     sending = true;
-    submitBtn.disabled = true;
+    // aria-disabled rather than disabled: the button keeps focus and its full colour.
+    submitBtn.setAttribute("aria-disabled", "true");
     submitBtn.textContent = "sending…";
+    formStatus.textContent = "Sending…";
     try {
       const status = await saveRequest(data);
       if ((status >= 200 && status < 300) || status === 409) {
         // 409: this exact request (same id) is already stored — an earlier try got through.
         showDone(data);
       } else if (status === 429) {
-        fail("Too many requests just now. Try again shortly.", data);
+        fail("Couldn't send right now. Try again later", data);
       } else if (status === 400 || status === 401 || status === 403) {
-        // The database turned it down: the time has passed, or the date is no longer offered.
-        buildDates();
-        buildTimes();
-        refreshSummary();
-        fail("That time is no longer available. Select another.", data);
+        // The database turned it down: the time has passed, or the owner has changed the dates.
+        // Read the dates again and ask for a fresh choice. Emailing the same request would not help.
+        await refreshDinner();
+        if (view !== "form") return;
+        inputs("time").forEach((i) => (i.checked = false));
+        if (!redrawFromClock()) return;
+        error.textContent = "That date or time is no longer offered. Select another.";
+        (firstTile(chosen("date") ? "time" : "date") || submitBtn).focus();
       } else {
-        fail("Couldn't send. Try again.", data);
+        fail("Couldn't send. Try again", data);
       }
     } catch (err) {
-      fail("Couldn't send. Check your connection and try again.", data);
+      fail("Couldn't send. Check your connection and try again", data);
     } finally {
       sending = false;
-      submitBtn.disabled = false;
+      submitBtn.removeAttribute("aria-disabled");
       submitBtn.textContent = SUBMIT_LABEL;
+      if (formStatus.textContent === "Sending…") formStatus.textContent = "";
     }
   });
 })();

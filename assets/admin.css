@@ -13,10 +13,10 @@
 .textbtn[disabled], .btn.small[disabled] { opacity: .4; pointer-events: none; }
 .textbtn.danger { color: var(--error); }
 
-.tabs { display: flex; gap: 28px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.tabs { display: flex; gap: clamp(12px, 4.5vw, 28px); border-bottom: 1px solid var(--line); margin-bottom: 8px; }
 .tabs [role="tab"] {
   border: 0; background: none; cursor: pointer; padding: 0 0 12px; margin-bottom: -1px;
-  font: 700 clamp(22px, 4vw, 30px)/1 var(--sans); letter-spacing: -.035em; color: var(--muted);
+  font: 700 clamp(17px, 5.3vw, 30px)/1 var(--sans); letter-spacing: -.035em; color: var(--muted);
   border-bottom: 2px solid transparent;
 }
 .tabs [role="tab"][aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }

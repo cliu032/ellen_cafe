@@ -3,12 +3,17 @@
 window.CAFE = {
   name: "ellen cafe & eatery",
   tagline: "cafe & eatery · alexandria, sydney",
-  intro: "A small neighbourhood cafe near Sydney Park.",
-  // Shown while there are no dinner dates, and once there are.
+  intro: "A small neighbourhood cafe on Huntley St, near Sydney Park.",
+  // The line under the intro: while there are no dinner dates, and once there are.
   walkInNote: "Breakfast and lunch, Tuesday to Sunday. Walk-in only.",
-  dinnerNote: "Breakfast and lunch are walk-in only. Dinner on selected evenings, by reservation.",
-  menuNote: "A sample menu. Dishes and prices change; specials most days.", // CHECK
-  reserveIntro: "Selected evenings, by reservation. Breakfast and lunch remain walk-in only.",
+  dinnerNote: "Breakfast and lunch are walk-in only.",
+  menuNote: "A sample menu. Dishes and prices change.", // CHECK
+  // Dinner wording lives here, not in the HTML, so a page with no dinner dates carries none of it.
+  dinnerLabel: "dinner",
+  dinnerBy: "By reservation.",
+  dinnerCta: "dinner.",
+  reserveTitle: "dinner",
+  reserveIntro: "Request a table. We reply by email. Breakfast and lunch are walk-in only.",
 
   instagram: "https://www.instagram.com/ellen_cafe/",
   instagramHandle: "@ellen_cafe",
@@ -18,6 +23,10 @@ window.CAFE = {
   address: ["153/18 Huntley St", "Alexandria NSW 2015"],
   mapUrl: "https://www.google.com/maps/search/?api=1&query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015",
   timezone: "Australia/Sydney",
+
+  // Set to false to state only the open days ("Tuesday to Sunday") and hide the open-now line
+  // until the times below have been confirmed.
+  hoursConfirmed: true,
 
   // Daytime opening hours. Daytime service is walk-in only: these hours are never bookable.
   // 0 = Sunday … 6 = Saturday. Use null for a closed day. 24-hour times.
@@ -93,6 +102,7 @@ window.CAFE = {
   reservation: {
     slotMinutes: 30, // 15 or 30. Owners pick seating times on the half hour; 60 could skip a last seating
     minNoticeMinutes: 60, // on the day, the earliest time offered is this far ahead
+    sameDayCloses: null, // or e.g. "15:00": no requests for tonight after this time
     maxParty: 8, // the database accepts up to 20
   },
 };

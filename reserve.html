@@ -1,61 +1,94 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>Reservations — ellen cafe &amp; eatery</title>
-  <meta name="description" content="Reservations at ellen cafe &amp; eatery, Alexandria. Breakfast and lunch are walk-in only.">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ellen cafe &amp; eatery</title>
+  <meta name="description" content="Breakfast and lunch at ellen cafe &amp; eatery, Alexandria, are walk-in only. No booking needed.">
+  <meta name="color-scheme" content="only light">
   <meta name="theme-color" content="#f3efe4">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="ellen cafe &amp; eatery">
+  <meta property="og:description" content="153/18 Huntley St, Alexandria. Tuesday to Sunday.">
+  <meta property="og:url" content="https://cliu032.github.io/ellen_cafe/reserve.html">
+  <meta property="og:image" content="https://cliu032.github.io/ellen_cafe/assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;1,700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <link rel="preconnect" href="https://qgibakqqtmfbbafclnfo.supabase.co" crossorigin>
+  <link rel="preload" href="assets/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/inter-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/styles.css?v=5">
+  <!-- With scripts on, hold back the static walk-in message until the page knows what to show.
+       If the page script never starts, give the static message back. -->
+  <script>document.documentElement.className="js";setTimeout(function(){if(!window.RESERVE_STARTED)document.documentElement.className=""},4000);</script>
 </head>
 <body>
   <div class="wrap">
     <nav class="nav" aria-label="Main">
       <a class="brand" href="index.html" aria-label="ellen, home">ellen</a>
       <ul>
+        <li data-if="dinner" hidden><a href="reserve.html" aria-current="page">reserve</a></li>
         <li><a href="index.html#menu">menu</a></li>
         <li><a href="index.html#visit">visit</a></li>
-        <li data-if="dinner" hidden><a href="reserve.html" aria-current="page">reserve</a></li>
       </ul>
     </nav>
 
     <main class="reserve" id="reserve-main">
-      <!-- Shown while the owner has no dinner dates set: there is nothing to reserve. -->
+      <!-- In the HTML for visitors without scripts; otherwise shown when there is nothing to reserve. -->
       <div id="closed-view">
-        <p class="label">reservations</p>
-        <h1>walk-in only</h1>
-        <p class="lede">We don't take bookings for breakfast or lunch. Come by, Tuesday to Sunday.</p>
+        <h1 tabindex="-1">walk-in only</h1>
+        <p class="lede">No booking needed for breakfast or lunch. Come by, Tuesday to Sunday.</p>
         <p class="hero-actions">
           <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a>
           <a class="link" href="index.html#visit">hours</a>
         </p>
-        <noscript><p class="hint">Dinner reservations, when offered, need JavaScript. Or email <a class="link" href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a>.</p></noscript>
+        <noscript><p class="hint">This page needs JavaScript. Or email <a class="link" href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a>.</p></noscript>
+      </div>
+
+      <div id="loading-view">
+        <p class="hint" role="status" id="loading-text"></p>
+      </div>
+
+      <div id="failed-view" hidden>
+        <h1 tabindex="-1">couldn't load</h1>
+        <p class="lede">Check your connection and try again.</p>
+        <p><button class="btn" type="button" id="try-again">try again</button></p>
+        <p class="hint">Or email <a class="link" data-mail href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a>.</p>
+      </div>
+
+      <div id="tonight-view" hidden>
+        <p class="label">reservations</p>
+        <h1 tabindex="-1" data-cafe="reserveTitle"></h1>
+        <p class="lede">Tonight's reservations have closed.</p>
+        <p class="record" data-record hidden></p>
+        <p class="done-actions"><a class="btn ghost" href="index.html">home</a></p>
       </div>
 
       <div id="form-view" hidden>
         <p class="label">reservations</p>
-        <h1>dinner</h1>
+        <h1 data-cafe="reserveTitle"></h1>
         <p class="lede" data-cafe="reserveIntro"></p>
+        <p class="record" data-record hidden></p>
 
         <form id="reserve-form" novalidate>
+          <p class="sr-only" role="status" id="form-status"></p>
+
           <fieldset class="group" id="party-group">
             <legend>Guests</legend>
             <div class="chips" id="party-chips"></div>
             <p class="hint" id="party-hint"></p>
           </fieldset>
 
-          <fieldset class="group" id="date-group" aria-describedby="date-error">
+          <fieldset class="group" id="date-group" role="radiogroup" aria-required="true" aria-describedby="date-error">
             <legend>Date</legend>
             <div class="chips dates" id="date-chips"></div>
             <button class="textbtn" type="button" id="more-dates" hidden>more dates</button>
+            <p class="hint" id="date-hint"></p>
             <p class="field-error" id="date-error"></p>
           </fieldset>
 
-          <fieldset class="group" id="time-group" aria-describedby="time-hint time-error">
+          <fieldset class="group" id="time-group" role="radiogroup" aria-required="true" aria-describedby="time-hint time-error">
             <legend>Time</legend>
             <p class="hint" id="time-hint" aria-live="polite"></p>
             <div class="chips times" id="time-chips"></div>
@@ -67,17 +100,18 @@
             <div class="fields">
               <div class="field">
                 <label for="name">Name</label>
-                <input type="text" id="name" name="name" autocomplete="name" maxlength="100" required aria-describedby="name-error">
+                <input type="text" id="name" name="name" autocomplete="name" enterkeyhint="next" maxlength="100" required aria-describedby="name-error">
                 <p class="field-error" id="name-error"></p>
               </div>
               <div class="field">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" maxlength="254" required aria-describedby="email-error">
+                <input type="email" id="email" name="email" autocomplete="email" inputmode="email" autocapitalize="none" spellcheck="false" enterkeyhint="next" maxlength="254" required aria-describedby="email-error email-suggest">
                 <p class="field-error" id="email-error"></p>
+                <p class="suggest" id="email-suggest"></p>
               </div>
               <div class="field">
                 <label for="phone">Phone <span class="optional">optional</span></label>
-                <input type="tel" id="phone" name="phone" autocomplete="tel" maxlength="30" aria-describedby="phone-error">
+                <input type="tel" id="phone" name="phone" autocomplete="tel" enterkeyhint="next" maxlength="30" aria-describedby="phone-error">
                 <p class="field-error" id="phone-error"></p>
               </div>
               <div class="field full">
@@ -89,16 +123,18 @@
 
           <div class="send">
             <p class="summary-line" id="summary-line" hidden></p>
+            <p class="reply-to" id="reply-to" hidden></p>
             <button class="btn" type="submit" id="submit">request reservation</button>
-            <p class="error" role="alert"><span id="error"></span> <a class="link" id="email-instead" hidden>Email it instead</a></p>
-            <p class="hint">This is a request. We confirm by email.</p>
+            <p class="error" role="alert"><span id="error"></span><a class="link" id="email-instead" hidden>email it instead</a><span id="error-end"></span></p>
+            <p class="hint" id="after-email" hidden></p>
+            <p class="hint">Reserved once we confirm by email.</p>
           </div>
         </form>
       </div>
 
       <div id="done-view" hidden>
         <p class="label">reservations</p>
-        <h1 id="done-title" tabindex="-1">request received</h1>
+        <h1 id="done-title" tabindex="-1">request sent</h1>
         <p class="lede" id="done-text"></p>
         <dl class="summary" id="summary"></dl>
         <p class="hint" id="done-next"></p>
@@ -107,12 +143,12 @@
     </main>
 
     <footer>
-      <span>© <span id="year"></span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
-      <a class="link" id="ig" target="_blank" rel="noopener"></a>
+      <span>© <span id="year">2026</span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
+      <a class="link" id="ig" href="https://www.instagram.com/ellen_cafe/" target="_blank" rel="noopener">instagram @ellen_cafe</a>
     </footer>
   </div>
-  <script src="assets/config.js"></script>
-  <script src="assets/site.js"></script>
-  <script src="assets/reserve.js"></script>
+  <script src="assets/config.js?v=5"></script>
+  <script src="assets/site.js?v=5"></script>
+  <script src="assets/reserve.js?v=5"></script>
 </body>
 </html>
