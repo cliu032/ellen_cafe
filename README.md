@@ -174,8 +174,15 @@ Never put a secret (`sb_secret_…`) or `service_role` key in this repository.
 ## Deploy
 
 `.github/workflows/pages.yml` publishes `index.html`, `reserve.html`, `admin.html` and
-`assets/` to GitHub Pages on every push. Pages must be switched on once: Settings → Pages →
-Build and deployment → Source: GitHub Actions.
+`assets/` to GitHub Pages. Pages must be switched on once: Settings → Pages → Build and
+deployment → Source: GitHub Actions.
+
+- The site is published on every push to the repository's **default branch**. GitHub Pages
+  refuses deployments from any other branch unless it is allowed under Settings →
+  Environments → github-pages → Deployment branches.
+- The default branch is currently `claude/bold-goodall-qtbk6b`; `main` holds the same commits
+  and is built on each push, but not published. To publish from `main` instead: make `main`
+  the default branch (Settings → General) and add it to the allowed deployment branches.
 
 ## Not built yet
 
