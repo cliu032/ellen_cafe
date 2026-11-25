@@ -10,6 +10,9 @@
   const error = $("error");
   const submitBtn = $("submit");
   const SUBMIT_LABEL = submitBtn.textContent;
+  const emailInstead = $("email-instead");
+  const SB = C.supabase || {};
+  const useDb = Boolean(SB.url && SB.publishableKey);
 
   // Dates are handled as plain "YYYY-MM-DD" strings in the café's timezone; UTC is only
   // used as a neutral calendar so the visitor's own timezone can never shift the day.
@@ -78,6 +81,7 @@
   form.addEventListener("input", (e) => {
     if (e.target.removeAttribute) e.target.removeAttribute("aria-invalid");
     error.textContent = "";
+    emailInstead.hidden = true;
   });
 
   function validate(data) {
@@ -89,6 +93,7 @@
     if (!Number.isInteger(party) || party < 1 || party > R.maxParty) return ["Please choose the number of guests.", $("party")];
     if (!data.name) return ["Please enter your name.", $("name")];
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return ["Please enter a valid email address.", $("email")];
+    if (data.phone && !/^[0-9+() .-]{5,30}$/.test(data.phone)) return ["Please enter a valid phone number, or leave it blank.", $("phone")];
     return null;
   }
 
@@ -117,46 +122,9 @@
     window.scrollTo(0, 0);
   }
 
-  let sending = false;
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (sending) return;
-    error.textContent = "";
-    const data = {};
-    new FormData(form).forEach((v, k) => (data[k] = String(v).trim()));
-    const problem = validate(data);
-    if (problem) {
-      error.textContent = problem[0];
-      problem[1].setAttribute("aria-invalid", "true");
-      problem[1].focus();
-      return;
-    }
+  // The request as an email, used when the database is not configured or cannot be reached.
+  function mailtoFor(data) {
     const guests = data.party + (data.party === "1" ? " guest" : " guests");
-    const summaryLine = prettyDate(data.date) + " at " + fmtTime(data.time) + ", " + guests;
-
-    if (R.endpoint) {
-      sending = true;
-      submitBtn.disabled = true;
-      submitBtn.textContent = "sending…";
-      try {
-        const res = await fetch(R.endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(Object.assign({ _subject: "Reservation request — " + summaryLine }, data)),
-        });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        showDone(data, "Your request is with us. It isn't confirmed yet — we'll reply to " + data.email + " to confirm.");
-      } catch (err) {
-        error.textContent = "Sorry, that didn't send. Please try again, or email " + C.email + ".";
-      } finally {
-        sending = false;
-        submitBtn.disabled = false;
-        submitBtn.textContent = SUBMIT_LABEL;
-      }
-      return;
-    }
-
-    // No endpoint configured: hand the request to the guest's own email app.
     const body = [
       "Reservation request",
       "",
@@ -168,13 +136,89 @@
       data.phone ? "Phone: " + data.phone : null,
       data.notes ? "Notes: " + data.notes : null,
     ].filter((l) => l !== null).join("\r\n");
-    window.location.href =
-      "mailto:" + C.email +
-      "?subject=" + encodeURIComponent("Reservation request — " + summaryLine) +
-      "&body=" + encodeURIComponent(body);
-    showDone(
-      data,
-      "Your email app should have opened with the request — press send to complete it. It isn't confirmed until we reply. If nothing opened, email " + C.email + " with the details below."
-    );
+    const subject = "Reservation request — " + prettyDate(data.date) + " at " + fmtTime(data.time) + ", " + guests;
+    return "mailto:" + C.email + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+  }
+
+  // Stores the request in Supabase. Resolves to the HTTP status; rejects if the network fails.
+  // The publishable key goes in the `apikey` header only — it is not a JWT.
+  async function saveRequest(data) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15000);
+    try {
+      const res = await fetch(SB.url.replace(/\/+$/, "") + "/rest/v1/reservations", {
+        method: "POST",
+        headers: { apikey: SB.publishableKey, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({
+          reservation_date: data.date,
+          reservation_time: data.time,
+          party_size: Number(data.party),
+          name: data.name,
+          email: data.email,
+          phone: data.phone || null,
+          notes: data.notes || null,
+        }),
+        signal: ctrl.signal,
+      });
+      return res.status;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function fail(message, data) {
+    error.textContent = message;
+    emailInstead.href = mailtoFor(data);
+    emailInstead.hidden = false;
+  }
+
+  let sending = false;
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (sending) return;
+    error.textContent = "";
+    emailInstead.hidden = true;
+    const data = {};
+    new FormData(form).forEach((v, k) => (data[k] = String(v).trim().replace(/[ \t]+/g, " ")));
+    const problem = validate(data);
+    if (problem) {
+      error.textContent = problem[0];
+      problem[1].setAttribute("aria-invalid", "true");
+      problem[1].focus();
+      return;
+    }
+
+    if (!useDb) {
+      window.location.href = mailtoFor(data);
+      showDone(
+        data,
+        "Your email app should have opened with the request — press send to complete it. It isn't confirmed until we reply. If nothing opened, email " + C.email + " with the details below."
+      );
+      return;
+    }
+
+    sending = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "sending…";
+    try {
+      const status = await saveRequest(data);
+      if (status >= 200 && status < 300) {
+        showDone(data, "Your request is with us. It isn't confirmed yet — we'll reply to " + data.email + " to confirm.");
+      } else if (status === 429) {
+        fail("We're getting a lot of requests right now. Please try again later.", data);
+      } else if (status === 400 || status === 403) {
+        // The database turned the details down, e.g. the time has just passed.
+        refreshTimes();
+        fail("We couldn't take that request. Please check the date, time and your details, then try again.", data);
+      } else {
+        fail("Sorry, that didn't send. Please try again.", data);
+      }
+    } catch (err) {
+      fail("Sorry, that didn't send. Please check your connection and try again.", data);
+    } finally {
+      sending = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = SUBMIT_LABEL;
+    }
   });
 })();

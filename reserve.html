@@ -47,15 +47,15 @@
           </div>
           <div class="field">
             <label for="name">Name</label>
-            <input type="text" id="name" name="name" autocomplete="name" required>
+            <input type="text" id="name" name="name" autocomplete="name" maxlength="100" required>
           </div>
           <div class="field">
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" autocomplete="email" required>
+            <input type="email" id="email" name="email" autocomplete="email" maxlength="254" required>
           </div>
           <div class="field">
             <label for="phone">Phone (optional)</label>
-            <input type="tel" id="phone" name="phone" autocomplete="tel">
+            <input type="tel" id="phone" name="phone" autocomplete="tel" maxlength="30">
           </div>
           <div class="field full">
             <label for="notes">Notes (optional)</label>
@@ -63,7 +63,7 @@
           </div>
           <div class="actions">
             <button class="btn" type="submit" id="submit">request reservation</button>
-            <p class="error" id="error" role="alert"></p>
+            <p class="error" role="alert"><span id="error"></span> <a class="link" id="email-instead" hidden>Send it by email instead</a></p>
           </div>
         </form>
       </div>

@@ -12,7 +12,7 @@ window.CAFE = {
   instagram: "https://www.instagram.com/ellen_cafe/",
   instagramHandle: "@ellen_cafe",
 
-  email: "ellen18huntley@gmail.com", // reservation requests are sent here
+  email: "ellen18huntley@gmail.com",
   phone: "", // leave empty to hide
   address: ["153/18 Huntley St", "Alexandria NSW 2015"],
   mapUrl: "https://www.google.com/maps/search/?api=1&query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015",
@@ -33,14 +33,19 @@ window.CAFE = {
   // Each item: { name, price (optional), desc (optional) }
   menu: [],
 
+  // Reservation requests are stored in the Supabase project below (table public.reservations).
+  // Both values are safe to publish: the key can only add a request, never read one.
+  // If either is empty, the form opens the guest's email app with the request instead.
+  supabase: {
+    url: "https://qgibakqqtmfbbafclnfo.supabase.co",
+    publishableKey: "sb_publishable_P2HPVhGGKjtvWITaQQwDlg_lrpw5EyD",
+  },
+
   reservation: {
-    // Optional: a form endpoint that accepts a JSON POST (e.g. Formspree).
-    // If empty, the form opens the guest's email app with the request addressed to `email`.
-    endpoint: "",
-    slotMinutes: 30,
+    slotMinutes: 30, // 15, 30 or 60 — the database accepts quarter-hour times only
     minNoticeMinutes: 30,
     lastSeatingBeforeCloseMinutes: 60,
-    maxParty: 8,
-    maxDaysAhead: 60,
+    maxParty: 8, // the database accepts up to 20
+    maxDaysAhead: 60, // the database accepts up to a year ahead
   },
 };
