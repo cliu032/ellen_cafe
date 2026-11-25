@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>ellen cafe &amp; eatery — Alexandria, Sydney</title>
+  <meta name="description" content="ellen cafe &amp; eatery, 153/18 Huntley St, Alexandria, near Sydney Park. Breakfast and lunch, Tuesday to Sunday. Walk-in only.">
+  <meta property="og:title" content="ellen cafe &amp; eatery">
+  <meta property="og:description" content="A small neighbourhood cafe near Sydney Park. Breakfast and lunch, Tuesday to Sunday. Walk-in only.">
+  <meta property="og:type" content="website">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3efe4">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="index.html" aria-label="ellen, home">ellen</a>
+      <ul>
+        <li><a href="#menu">menu</a></li>
+        <li><a href="#visit">visit</a></li>
+        <li data-if="dinner" hidden><a href="reserve.html">reserve</a></li>
+      </ul>
+    </nav>
+
+    <main>
+      <header class="hero">
+        <h1 class="wordmark" aria-label="ellen cafe &amp; eatery"><span aria-hidden="true">caf<b>elle</b>atery<b>n</b></span></h1>
+        <p class="label" data-cafe="tagline">cafe &amp; eatery · alexandria, sydney</p>
+        <p class="status" id="open-status" hidden></p>
+        <p class="intro" data-cafe="intro">A small neighbourhood cafe near Sydney Park.</p>
+        <p class="service" id="service-note">Breakfast and lunch, Tuesday to Sunday. Walk-in only.</p>
+        <p class="service" id="tonight" hidden></p>
+        <p class="hero-actions">
+          <a class="btn" id="hero-primary" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a>
+          <a class="link" id="hero-secondary" href="#menu">menu</a>
+        </p>
+      </header>
+
+      <section id="gallery" class="gallery-section" aria-labelledby="gallery-h" hidden>
+        <h2 id="gallery-h" class="sr-only">photos</h2>
+        <ul class="gallery" id="gallery-list"></ul>
+      </section>
+
+      <section id="menu" aria-labelledby="menu-h">
+        <div class="split">
+          <h2 id="menu-h">menu</h2>
+          <div>
+            <div class="menu" id="menu-list"></div>
+            <p class="note" data-cafe="menuNote"></p>
+            <noscript><p class="note">The menu needs JavaScript. Today's dishes are on <a class="link" href="https://www.instagram.com/ellen_cafe/">Instagram</a>.</p></noscript>
+          </div>
+        </div>
+      </section>
+
+      <section id="visit" aria-labelledby="visit-h">
+        <div class="split">
+          <h2 id="visit-h">visit</h2>
+          <div class="visit">
+            <div>
+              <h3 class="label">find us</h3>
+              <address id="address"><p>153/18 Huntley St</p><p>Alexandria NSW 2015</p></address>
+              <p><a class="link" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a></p>
+              <p id="contact"><a class="link" href="mailto:ellen18huntley@gmail.com">ellen18huntley@gmail.com</a></p>
+            </div>
+            <div>
+              <h3 class="label">hours</h3>
+              <table class="hours" id="hours"><tbody><tr><th scope="row">Tuesday to Sunday</th><td>Open</td></tr><tr><th scope="row">Monday</th><td>Closed</td></tr></tbody></table>
+              <p class="note" id="hours-note">Walk-in only. No bookings.</p>
+              <div data-if="dinner" hidden>
+                <h3 class="label dinner-label">dinner</h3>
+                <p class="note">Selected evenings, by reservation.</p>
+                <ul class="dates" id="dinner-dates"></ul>
+                <p><a class="link" href="reserve.html">reserve</a></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta" aria-label="Before you come">
+        <div data-if="walk-in">
+          <h2>walk in.</h2>
+          <p>No booking needed.</p>
+          <a class="btn" data-directions href="https://www.google.com/maps/search/?api=1&amp;query=ellen+cafe+18+Huntley+St+Alexandria+NSW+2015" target="_blank" rel="noopener">directions</a>
+        </div>
+        <div data-if="dinner" hidden>
+          <h2>dinner.</h2>
+          <p>Selected evenings, by reservation.</p>
+          <a class="btn" href="reserve.html">reserve</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>© <span id="year"></span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
+      <a class="link" id="ig" target="_blank" rel="noopener"></a>
+    </footer>
+  </div>
+  <script src="assets/config.js"></script>
+  <script src="assets/site.js"></script>
+</body>
+</html>

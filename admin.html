@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Owner area — ellen cafe &amp; eatery</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <!-- This page shows guests' contact details, so it only runs its own scripts, and apart from the web font it only talks to Supabase. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#f3efe4">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,700;1,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/admin.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav" aria-label="Main">
+      <a class="brand" href="index.html" aria-label="ellen — home">ellen</a>
+      <ul id="account" hidden>
+        <li class="who" id="who"></li>
+        <li><button class="textbtn" type="button" id="signout">sign out</button></li>
+      </ul>
+    </nav>
+
+    <main class="admin">
+      <p class="hint" id="view-loading">Loading…</p>
+
+      <section id="view-signin" hidden>
+        <div class="label">owner area</div>
+        <h1 id="signin-h" tabindex="-1">sign in</h1>
+        <form id="signin-form" class="signin" novalidate>
+          <div class="field full">
+            <label for="signin-email">Email</label>
+            <input type="email" id="signin-email" autocomplete="username" required>
+          </div>
+          <div class="field full">
+            <label for="signin-password">Password</label>
+            <input type="password" id="signin-password" autocomplete="current-password" required>
+          </div>
+          <div class="actions">
+            <button class="btn" type="submit" id="signin-submit">sign in</button>
+            <p class="error" id="signin-error" role="alert"></p>
+          </div>
+        </form>
+      </section>
+
+      <section id="view-denied" hidden>
+        <div class="label">owner area</div>
+        <h1 id="denied-h" tabindex="-1">no access</h1>
+        <p>This account isn't on the owner list.</p>
+        <p class="hint">Signed in as <span id="denied-who"></span>.</p>
+        <p><button class="btn ghost" type="button" id="denied-signout">sign out</button></p>
+      </section>
+
+      <section id="view-error" hidden>
+        <div class="label">owner area</div>
+        <h1 id="error-h" tabindex="-1">something went wrong</h1>
+        <p id="error-text"></p>
+        <p><button class="btn ghost" type="button" id="error-retry">try again</button></p>
+      </section>
+
+      <section id="view-app" hidden>
+        <p class="warning" id="signup-warning" hidden>Sign-up is open on this Supabase project. Turn it off: Authentication → Sign In / Providers → “Allow new users to sign up”.</p>
+        <div class="tabs" role="tablist" aria-label="Owner area">
+          <button type="button" role="tab" id="tab-reservations" aria-controls="panel-reservations" aria-selected="true">reservations <span class="badge" id="pending-badge" hidden></span></button>
+          <button type="button" role="tab" id="tab-dinner" aria-controls="panel-dinner" aria-selected="false" tabindex="-1">dinner</button>
+          <button type="button" role="tab" id="tab-photos" aria-controls="panel-photos" aria-selected="false" tabindex="-1">photos</button>
+        </div>
+        <p class="notice" id="notice" role="status"></p>
+
+        <div id="panel-reservations" role="tabpanel" aria-labelledby="tab-reservations" tabindex="0">
+          <div class="toolbar">
+            <div class="field">
+              <label for="res-filter">Show</label>
+              <select id="res-filter">
+                <option value="todo">Awaiting reply</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="past">Past</option>
+                <option value="all">All</option>
+              </select>
+            </div>
+            <button class="textbtn" type="button" id="res-refresh">refresh</button>
+          </div>
+          <div id="res-list" aria-live="polite"></div>
+        </div>
+
+        <div id="panel-dinner" role="tabpanel" aria-labelledby="tab-dinner" tabindex="0" hidden>
+          <p class="hint">Dinner runs only on the dates you pick. Guests reserve between the first and last seating.</p>
+          <div class="toolbar">
+            <div class="field">
+              <label for="dinner-first">First seating</label>
+              <select id="dinner-first"></select>
+            </div>
+            <div class="field">
+              <label for="dinner-last">Last seating</label>
+              <select id="dinner-last"></select>
+            </div>
+          </div>
+          <p class="hint" id="dinner-help">Select a date to add it with these times. Select it again to remove it.</p>
+          <div class="cal-head" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div>
+          <div class="cal" id="dinner-cal" role="group" aria-label="Dinner dates" aria-describedby="dinner-help"></div>
+          <button class="textbtn" type="button" id="dinner-more">more weeks</button>
+          <h2 class="list-title">upcoming dinners</h2>
+          <ul class="dinner-list" id="dinner-list"></ul>
+        </div>
+
+        <div id="panel-photos" role="tabpanel" aria-labelledby="tab-photos" tabindex="0" hidden>
+          <div class="toolbar">
+            <label class="btn" for="photo-input" id="photo-add">add photos</label>
+            <input class="sr-only" type="file" id="photo-input" accept="image/jpeg,image/png,image/webp" multiple>
+            <p class="hint" id="photo-progress" role="status"></p>
+          </div>
+          <p class="hint">Shown on the home page in this order. Describe each photo for screen readers.</p>
+          <ul class="photo-list" id="photo-list"></ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>© <span id="year"></span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
+      <a class="link" id="ig" target="_blank" rel="noopener"></a>
+    </footer>
+  </div>
+  <script src="assets/config.js"></script>
+  <script src="assets/site.js"></script>
+  <script src="assets/vendor/supabase-2.119.0.js"></script>
+  <script src="assets/admin.js"></script>
+</body>
+</html>
