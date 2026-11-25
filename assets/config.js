@@ -91,7 +91,7 @@ window.CAFE = {
   // Those dates and their seating times live in Supabase, not here. These are the remaining
   // rules for the reservation form.
   reservation: {
-    slotMinutes: 30, // 15, 30 or 60 — the database accepts quarter-hour times only
+    slotMinutes: 30, // 15 or 30. Owners pick seating times on the half hour; 60 could skip a last seating
     minNoticeMinutes: 60, // on the day, the earliest time offered is this far ahead
     maxParty: 8, // the database accepts up to 20
   },

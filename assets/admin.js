@@ -43,10 +43,24 @@
   // ---------------------------------------------------------------- signing in and out
 
   let currentUserId = null;
+  // Each load takes a ticket; an answer that arrives after a newer load, or after sign-out, is dropped.
+  let loadingReservations = 0;
+  let loadingDinner = 0;
+  let loadingPhotos = 0;
+
+  // Guests' details must not stay in the page once nobody is signed in.
+  function forgetEverything() {
+    loadingReservations++;
+    loadingDinner++;
+    loadingPhotos++;
+    ["res-list", "dinner-list", "dinner-cal", "photo-list", "who", "denied-who", "notice"].forEach((id) => ($(id).textContent = ""));
+    $("pending-badge").hidden = true;
+  }
 
   async function enter(session) {
     if (!session) {
       currentUserId = null;
+      forgetEverything();
       $("account").hidden = true;
       show("signin");
       return;
@@ -120,20 +134,15 @@
     }
   });
 
+  // Signing out must work with no connection, so it only ends the session in this browser
+  // (scope "local" needs no answer from the server). Sessions on other devices are untouched.
   async function signOut() {
-    // signOut() reports a failure in its result rather than throwing. Whatever happens with
-    // the server (offline, an error), the session must be forgotten in this browser.
-    let failed;
+    forgetEverything();
     try {
-      failed = (await sb.auth.signOut()).error;
+      await sb.auth.signOut({ scope: "local" });
     } catch (err) {
-      failed = err;
+      // Nothing more to do: the page has already been cleared.
     }
-    if (failed) await sb.auth.signOut({ scope: "local" }).catch(() => {});
-    $("res-list").textContent = "";
-    $("dinner-list").textContent = "";
-    $("dinner-cal").textContent = "";
-    $("photo-list").textContent = "";
   }
   $("signout").addEventListener("click", signOut);
   $("denied-signout").addEventListener("click", signOut);
@@ -179,7 +188,7 @@
     });
 
   // A guest's address is their own text: encode it so it can only ever be the recipient.
-  const mailtoAddress = (email) => encodeURIComponent(email).replace(/%40/g, "@");
+  const mailtoAddress = (email) => encodeURIComponent(email).replace(/'/g, "%27").replace(/%40/g, "@");
 
   function replyLink(r) {
     const first = String(r.name).split(" ")[0];
@@ -205,7 +214,6 @@
 
   const resList = $("res-list");
   const filter = $("res-filter");
-  let loadingReservations = 0;
 
   async function loadReservations() {
     const ticket = ++loadingReservations;
@@ -287,7 +295,8 @@
     if (r.phone) {
       contact.append(" · ");
       const tel = el("a", r.phone, "link");
-      tel.href = "tel:" + r.phone.replace(/[^\d+]/g, "");
+      // "+61 (0)412 345 678": the bracketed zero is not dialled after a country code.
+      tel.href = "tel:" + r.phone.replace(/^(\s*\+\d{1,3})\s*\(0\)/, "$1").replace(/[^\d+]/g, "");
       contact.append(tel);
     }
     who.append(contact);
@@ -382,6 +391,8 @@
   $("res-refresh").addEventListener("click", () => {
     say("");
     loadReservations();
+    loadDinner();
+    if (!photosLoaded) loadPhotos();
   });
 
   // ---------------------------------------------------------------- dinner dates
@@ -396,7 +407,8 @@
   let dinners = []; // [{ service_date, first_seating, last_seating }] upcoming, soonest first
   let liveRequests = {}; // date -> requests awaiting reply or confirmed
   let dinnerWeeks = 8;
-  let dinnerBusy = false;
+  let dinnerLoaded = false; // false until the dates have arrived at least once
+  const dinnerSaving = new Set(); // dates with an add or remove in flight
 
   const pad2 = (n) => String(n).padStart(2, "0");
   const HALF_HOURS = [];
@@ -426,15 +438,18 @@
   lastSel.addEventListener("change", usualChanged);
 
   async function loadDinner() {
+    const ticket = ++loadingDinner;
     const today = cafeNow().date;
     const [services, requests] = await Promise.all([
       sb.from("dinner_services").select("service_date, first_seating, last_seating").gte("service_date", today).order("service_date", { ascending: true }),
       sb.from("reservations").select("reservation_date").in("status", ["pending", "confirmed"]).gte("reservation_date", today),
     ]);
+    if (ticket !== loadingDinner) return; // a newer load, a change made meanwhile, or sign-out
     if (services.error) {
-      say("Couldn't load dinner dates. Try again.", true);
+      say("Couldn't load dinner dates. Use refresh to try again.", true);
       return;
     }
+    dinnerLoaded = true;
     dinners = services.data;
     liveRequests = {};
     if (!requests.error) requests.data.forEach((r) => (liveRequests[r.reservation_date] = (liveRequests[r.reservation_date] || 0) + 1));
@@ -442,6 +457,9 @@
   }
 
   function renderDinner(focusDate) {
+    // A redraw must not take the keyboard away from the date the owner is on.
+    const active = document.activeElement;
+    if (!focusDate && active && dinnerCal.contains(active)) focusDate = active.dataset.date;
     const today = cafeNow().date;
     const on = {};
     dinners.forEach((d) => (on[d.service_date] = d));
@@ -495,7 +513,7 @@
       };
       const first = field("First seating", hhmm(d.first_seating), null, "first");
       const last = field("Last seating", hhmm(d.last_seating), hhmm(d.first_seating), "last");
-      const save = () => changeTimes(d, first.select.value, last.select.value);
+      const save = (e) => changeTimes(d, first.select.value, last.select.value, e.target.id);
       first.select.addEventListener("change", save);
       last.select.addEventListener("change", save);
       const remove = el("button", "remove", "textbtn danger");
@@ -515,63 +533,90 @@
   const sortDinners = () => dinners.sort((a, b) => (a.service_date < b.service_date ? -1 : 1));
 
   async function toggleDinner(date) {
-    if (dinnerBusy) return;
+    // The page may have sat open past midnight: never add an evening that has gone.
+    if (date < cafeNow().date) return loadDinner();
+    if (dinnerSaving.has(date)) return;
     if (dinners.some((d) => d.service_date === date)) return removeDinner(date, true);
-    dinnerBusy = true;
+    dinnerSaving.add(date);
+    const first = firstSel.value;
+    const last = lastSel.value;
     const { data, error } = await sb
       .from("dinner_services")
-      .insert({ service_date: date, first_seating: firstSel.value, last_seating: lastSel.value })
+      .insert({ service_date: date, first_seating: first, last_seating: last })
       .select("service_date, first_seating, last_seating");
-    dinnerBusy = false;
-    if (error || !data || data.length !== 1) {
-      say("Couldn't add that date. Try again.", true);
-      if (error && error.code === "23505") loadDinner();
+    dinnerSaving.delete(date);
+    if (error && error.code === "23505") {
+      // Added meanwhile from another tab or device.
+      await loadDinner();
+      say(shortDate(date) + " already has dinner.");
       return;
     }
+    if (error || !data || data.length !== 1) {
+      say("Couldn't add " + shortDate(date) + ". Try again.", true);
+      return;
+    }
+    loadingDinner++; // an older load still in flight would not know about this date
     dinners.push(data[0]);
     sortDinners();
-    renderDinner(date);
-    say("Added " + shortDate(date) + ", " + fmtTime(firstSel.value) + " to " + fmtTime(lastSel.value) + ".");
+    renderDinner();
+    say("Added " + shortDate(date) + ", " + fmtTime(first) + " to " + fmtTime(last) + ".");
   }
 
   async function removeDinner(date, fromCalendar) {
-    if (dinnerBusy) return;
-    const n = liveRequests[date] || 0;
+    if (dinnerSaving.has(date)) return;
+    dinnerSaving.add(date);
+    // Count this evening's requests now, not from when the page was loaded.
+    const fresh = await sb
+      .from("reservations")
+      .select("id", { count: "exact", head: true })
+      .eq("reservation_date", date)
+      .in("status", ["pending", "confirmed"]);
+    const n = fresh.error ? liveRequests[date] || 0 : fresh.count || 0;
     if (n) {
       const which = n === 1 ? "1 request for it stays" : n + " requests for it stay";
-      if (!window.confirm("Remove dinner on " + shortDate(date) + "? " + which + " in Reservations.")) return;
+      if (!window.confirm("Remove dinner on " + shortDate(date) + "? " + which + " in Reservations.")) {
+        dinnerSaving.delete(date);
+        liveRequests[date] = n;
+        renderDinner(fromCalendar ? date : null);
+        return;
+      }
     }
-    dinnerBusy = true;
     const { data, error } = await sb.from("dinner_services").delete().eq("service_date", date).select("service_date");
-    dinnerBusy = false;
+    dinnerSaving.delete(date);
     if (error || !data || data.length !== 1) {
-      say("Couldn't remove that date. Try again.", true);
-      loadDinner();
+      await loadDinner();
+      const gone = !error && !dinners.some((d) => d.service_date === date);
+      say(gone ? shortDate(date) + " was already removed." : "Couldn't remove " + shortDate(date) + ". Try again.", !gone);
       return;
     }
+    loadingDinner++;
     dinners = dinners.filter((d) => d.service_date !== date);
     renderDinner(fromCalendar ? date : null);
     say("Removed " + shortDate(date) + ".");
   }
 
-  async function changeTimes(d, first, last) {
+  async function changeTimes(d, first, last, selectId) {
     if (toMin(last) < toMin(first)) last = first;
     const { data, error } = await sb
       .from("dinner_services")
       .update({ first_seating: first, last_seating: last })
       .eq("service_date", d.service_date)
       .select("service_date, first_seating, last_seating");
-    if (error || !data || data.length !== 1) {
-      say("Couldn't save the times. Try again.", true);
-      renderDinner();
-      return;
+    const ok = !error && data && data.length === 1;
+    if (ok) {
+      loadingDinner++;
+      Object.assign(d, data[0]);
     }
-    Object.assign(d, data[0]);
     renderDinner();
-    say(shortDate(d.service_date) + ": " + fmtTime(first) + " to " + fmtTime(last) + ".");
+    // The list was redrawn: put the keyboard back on the select that was being changed.
+    const again = $(selectId);
+    if (again && (document.activeElement === document.body || !document.activeElement)) again.focus();
+    if (ok) say(shortDate(d.service_date) + ": " + fmtTime(first) + " to " + fmtTime(last) + ".");
+    else say("Couldn't save the times. Try again.", true);
   }
 
   $("dinner-more").addEventListener("click", () => {
+    if (!dinnerLoaded) return loadDinner(); // never draw "no dinner dates" from data that did not arrive
     const firstNew = addDays(cafeNow().date, dinnerWeeks * 7 - ((new Date(cafeNow().date + "T00:00:00Z").getUTCDay() + 6) % 7));
     dinnerWeeks = Math.min(52, dinnerWeeks + 8);
     renderDinner(firstNew);
@@ -588,16 +633,20 @@
 
   const publicUrl = (path) => sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 
+  let photosLoaded = false;
   async function loadPhotos() {
+    const ticket = ++loadingPhotos;
     const { data, error } = await sb
       .from("photos")
       .select("id, path, alt, sort_order, width, height, created_at")
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
+    if (ticket !== loadingPhotos) return;
     if (error) {
-      say("Couldn't load photos. Try again.", true);
+      say("Couldn't load photos. Use refresh to try again.", true);
       return;
     }
+    photosLoaded = true;
     photos = data;
     renderPhotos();
   }
@@ -687,7 +736,7 @@
       return;
     }
     changes.forEach((c) => (c.p.sort_order = c.order));
-    photos = next;
+    photos = next.concat(photos.filter((p) => !next.includes(p))); // plus any added while this was saving
     renderPhotos();
     const moved = photoList.children[target].querySelector(step < 0 ? ".move button:first-child" : ".move button:last-child");
     (moved && !moved.disabled ? moved : photoList.children[target].querySelector(".move button:not([disabled])") || photoInput).focus();
@@ -809,12 +858,17 @@
 
   // ---------------------------------------------------------------- keeping it fresh
 
-  // New requests arrive while the page sits open: reload when the owner comes back to the tab.
+  // New requests arrive while the page sits open: look again when the owner comes back to the tab.
   let lastLoad = Date.now();
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible" || $("view-app").hidden) return;
     if (Date.now() - lastLoad < 30000) return;
     lastLoad = Date.now();
-    loadReservations();
+    // Requests just confirmed or declined stay on screen until the guest has been emailed
+    // (often from another app). Don't sweep them away on return; the badge still counts new ones.
+    if (filter.value === "todo" && resList.querySelector(".chip:not(.pending)")) refreshBadge();
+    else loadReservations();
+    loadDinner(); // also moves "today" on when the page has sat open overnight
+    if (!photosLoaded) loadPhotos();
   });
 })();

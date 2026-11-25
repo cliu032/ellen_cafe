@@ -96,9 +96,10 @@ Do these in order.
 3. **Put the account on the owner list.** In SQL Editor run, with the same email:
 
        insert into private.owners (user_id)
-       select id from auth.users where email = 'owner@example.com';
+       select id from auth.users where email = lower('owner@example.com')
+       returning user_id;
 
-   It should report one row inserted.
+   It should show one row. If it shows none, the email does not match the account.
 
 To remove access, delete the user (Authentication → Users); their owner entry goes with it.
 To change a password, delete the user and repeat steps 2 and 3.

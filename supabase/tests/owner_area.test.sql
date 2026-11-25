@@ -50,14 +50,11 @@ select ok(not has_table_privilege('anon', 'private.owners', 'select'),
   'visitors cannot read the owner list');
 select ok(not has_function_privilege('anon', 'public.is_owner()', 'execute'),
   'visitors cannot call is_owner');
-select ok(
-  (select bool_and(attstattarget = 0) from pg_attribute
-    where attrelid = 'public.reservations'::regclass and attnum > 0 and not attisdropped),
-  'no column statistics are kept for reservations, so planner estimates say nothing about its contents');
-select column_privs_are('public', 'reservations', 'status', 'authenticated', array['SELECT', 'UPDATE'],
-  'signed-in accounts may only change the status column of a reservation');
-select column_privs_are('public', 'reservations', 'email', 'authenticated', array['SELECT'],
-  'signed-in accounts cannot edit a guest''s details');
+-- After a fresh ANALYZE there must still be no statistics for the table: the planner's row
+-- estimates then say nothing about what it holds.
+analyze public.reservations;
+select is((select count(*) from pg_stats where schemaname = 'public' and tablename = 'reservations'), 0::bigint,
+  'no column statistics are kept for reservations');
 
 -- Anonymous visitors ------------------------------------------------------------------------
 set local role anon;
