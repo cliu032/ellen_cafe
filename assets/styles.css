@@ -131,8 +131,21 @@ section h2 { font-size: clamp(36px, 5vw, 56px); color: var(--accent); }
 .dates .from { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .gallery-section { padding: 48px 0; }
-.gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.gallery { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.gallery li { grid-column: span 2; }
 .gallery img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; background: var(--line); }
+/* Three to a row. A last row that would hold one or two photos is laid out as pairs instead,
+   so no row ends in a gap: 2 → one pair, 4 → two pairs, 5 → three and a pair, 7 → three and two pairs. */
+@media (min-width: 721px) {
+  .gallery li:nth-child(3n+1):nth-last-child(2), .gallery li:nth-child(3n+2):last-child,
+  .gallery li:nth-child(3n+1):nth-last-child(4), .gallery li:nth-child(3n+2):nth-last-child(3),
+  .gallery li:nth-child(3n):nth-last-child(2), .gallery li:nth-child(3n+1):last-child { grid-column: span 3; }
+  .gallery li:nth-child(3n+1):nth-last-child(2) img, .gallery li:nth-child(3n+2):last-child img,
+  .gallery li:nth-child(3n+1):nth-last-child(4) img, .gallery li:nth-child(3n+2):nth-last-child(3) img,
+  .gallery li:nth-child(3n):nth-last-child(2) img, .gallery li:nth-child(3n+1):last-child img { aspect-ratio: 6 / 5; }
+  .gallery li:first-child:last-child { grid-column: span 6; }
+  .gallery li:first-child:last-child img { aspect-ratio: 2 / 1; }
+}
 
 .cta { text-align: center; }
 .cta h2 { margin-bottom: 14px; }
@@ -219,9 +232,10 @@ input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--
   .chips.times, .chips.dates { grid-template-columns: repeat(3, 1fr); }
   .gallery-section { padding: 32px 0; }
   /* photos: one row to swipe through, however many there are */
-  .gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 8px; margin: 0 -24px; padding: 0 24px; scrollbar-width: none; }
+  .gallery { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding: 0 24px; gap: 8px; margin: 0 -24px; padding: 0 24px; scrollbar-width: none; }
   .gallery::-webkit-scrollbar { display: none; }
   .gallery li { flex: 0 0 70vw; scroll-snap-align: start; }
+  .gallery li:only-child { flex-basis: 100%; }
 }
 
 /* Windows contrast themes: keep the chosen tile and the open dot distinguishable. */

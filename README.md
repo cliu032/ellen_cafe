@@ -61,7 +61,7 @@ menu section stays hidden while `menu` is empty.
 - The address, email and "Tuesday to Sunday" are also written into `index.html` and
   `reserve.html` themselves, so they show even if JavaScript does not run. If any of those
   change, change them in both places.
-- The pages load their files as `styles.css?v=5`, `site.js?v=5` and so on. After changing a
+- The pages load their files as `styles.css?v=6`, `site.js?v=5` and so on. After changing a
   file in `assets/`, raise that number in the three HTML files so returning visitors get the
   new version straight away.
 - Link previews (`og:url`, `og:image` in each page's `<head>`) use the full
