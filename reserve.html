@@ -1,31 +1,33 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <title>Reserve — ellen cafe &amp; eatery</title>
+  <meta name="description" content="Request a table at ellen cafe &amp; eatery, Alexandria.">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Reserve — Ellen Cafe</title>
-  <meta name="description" content="Reserve a table at Ellen Cafe.">
+  <meta name="theme-color" content="#f3efe4">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
   <div class="wrap">
     <nav class="nav" aria-label="Main">
-      <a class="brand" href="index.html" data-cafe="name">Ellen Cafe</a>
+      <a class="brand" href="index.html" aria-label="ellen — home">ellen</a>
       <ul>
-        <li><a href="index.html#menu">Menu</a></li>
-        <li><a href="index.html#visit">Visit</a></li>
-        <li><a href="reserve.html" aria-current="page">Reserve</a></li>
+        <li><a href="index.html#menu">menu</a></li>
+        <li><a href="index.html#visit">visit</a></li>
+        <li><a href="reserve.html" aria-current="page">reserve</a></li>
       </ul>
     </nav>
 
     <main class="reserve">
       <div id="form-view">
-        <div class="label">Reservations</div>
-        <h1>Reserve a table</h1>
-        <p>Send a request and we'll confirm by email. For larger groups, please write to us directly.</p>
+        <div class="label">reservations</div>
+        <h1>reserve a table</h1>
+        <p data-cafe="reserveIntro"></p>
 
         <form id="reserve-form" novalidate>
           <div class="field">
@@ -60,23 +62,23 @@
             <textarea id="notes" name="notes" rows="2" maxlength="500"></textarea>
           </div>
           <div class="actions">
-            <button class="btn" type="submit" id="submit">Request reservation</button>
+            <button class="btn" type="submit" id="submit">request reservation</button>
             <p class="error" id="error" role="alert"></p>
           </div>
         </form>
       </div>
 
       <div id="done-view" hidden>
-        <div class="label">Reservations</div>
-        <h1 id="done-title" tabindex="-1">Thank you.</h1>
+        <div class="label">reservations</div>
+        <h1 id="done-title" tabindex="-1">thank you.</h1>
         <p id="done-text"></p>
         <dl class="summary" id="summary"></dl>
-        <a class="btn ghost" href="index.html">Back to home</a>
+        <a class="btn ghost" href="index.html">back to home</a>
       </div>
     </main>
 
     <footer>
-      <span>© <span id="year"></span> <span data-cafe="name">Ellen Cafe</span></span>
+      <span>© <span id="year"></span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
       <a class="link" id="ig" target="_blank" rel="noopener"></a>
     </footer>
   </div>

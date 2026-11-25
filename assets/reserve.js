@@ -1,70 +1,92 @@
 (function () {
   const C = window.CAFE;
   const R = C.reservation;
+  const { fmtTime, cafeNow } = window.CAFE_UTIL;
   const $ = (id) => document.getElementById(id);
   const form = $("reserve-form");
   const dateEl = $("date");
   const timeEl = $("time");
   const hint = $("date-hint");
   const error = $("error");
+  const submitBtn = $("submit");
+  const SUBMIT_LABEL = submitBtn.textContent;
 
+  // Dates are handled as plain "YYYY-MM-DD" strings in the café's timezone; UTC is only
+  // used as a neutral calendar so the visitor's own timezone can never shift the day.
   const pad = (n) => String(n).padStart(2, "0");
-  const iso = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   const toMin = (hhmm) => { const [h, m] = hhmm.split(":").map(Number); return h * 60 + m; };
   const fromMin = (m) => pad(Math.floor(m / 60)) + ":" + pad(m % 60);
-  const parseDate = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const asUTC = (s) => new Date(s + "T00:00:00Z");
+  const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(asUTC(s)) && asUTC(s).toISOString().slice(0, 10) === s;
+  const addDays = (s, n) => { const d = asUTC(s); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const prettyDate = (s) =>
-    parseDate(s).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    asUTC(s).toLocaleDateString("en-AU", { timeZone: "UTC", weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  const now = new Date();
-  const max = new Date(now);
-  max.setDate(max.getDate() + R.maxDaysAhead);
-  dateEl.min = iso(now);
-  dateEl.max = iso(max);
+  function bounds() {
+    const today = cafeNow().date;
+    return { min: today, max: addDays(today, R.maxDaysAhead) };
+  }
+  const b0 = bounds();
+  dateEl.min = b0.min;
+  dateEl.max = b0.max;
 
   for (let i = 1; i <= R.maxParty; i++) {
     $("party").add(new Option(i + (i === 1 ? " guest" : " guests"), i));
   }
-  $("party").value = 2;
+  $("party").value = Math.min(2, R.maxParty);
 
+  // null = date outside the bookable window; [] = closed or nothing left that day.
   function slotsFor(dateStr) {
-    if (!dateStr || dateStr < dateEl.min || dateStr > dateEl.max) return null;
-    const h = C.hours[parseDate(dateStr).getDay()];
+    const { min, max } = bounds();
+    if (!isDate(dateStr) || dateStr < min || dateStr > max) return null;
+    const h = C.hours[asUTC(dateStr).getUTCDay()];
     if (!h) return [];
-    const slots = [];
+    const now = cafeNow();
+    const earliest = dateStr === now.date ? now.minutes + R.minNoticeMinutes : 0;
     const last = toMin(h.close) - R.lastSeatingBeforeCloseMinutes;
-    const current = new Date();
-    const earliest = dateStr === iso(current) ? current.getHours() * 60 + current.getMinutes() + 30 : 0;
+    const slots = [];
     for (let m = toMin(h.open); m <= last; m += R.slotMinutes) if (m >= earliest) slots.push(fromMin(m));
     return slots;
   }
 
   function refreshTimes() {
+    const previous = timeEl.value;
     const slots = slotsFor(dateEl.value);
     timeEl.length = 0;
     hint.textContent = "";
     if (slots === null) {
       timeEl.add(new Option(dateEl.value ? "Date unavailable" : "Choose a date first", ""));
       timeEl.disabled = true;
-      if (dateEl.value) hint.textContent = "Please choose a date within the next " + R.maxDaysAhead + " days.";
+      if (dateEl.value) hint.textContent = "Please choose a date from today up to " + R.maxDaysAhead + " days ahead.";
     } else if (!slots.length) {
       timeEl.add(new Option("No times available", ""));
       timeEl.disabled = true;
-      hint.textContent = C.hours[parseDate(dateEl.value).getDay()]
+      hint.textContent = C.hours[asUTC(dateEl.value).getUTCDay()]
         ? "No more tables for today — please pick another day."
         : "We're closed that day — please pick another.";
     } else {
       timeEl.add(new Option("Select a time", ""));
-      slots.forEach((s) => timeEl.add(new Option(s, s)));
+      slots.forEach((s) => timeEl.add(new Option(fmtTime(s), s)));
       timeEl.disabled = false;
+      if (slots.includes(previous)) timeEl.value = previous;
     }
   }
   dateEl.addEventListener("change", refreshTimes);
+  dateEl.addEventListener("input", refreshTimes);
+  refreshTimes();
+
+  form.addEventListener("input", (e) => {
+    if (e.target.removeAttribute) e.target.removeAttribute("aria-invalid");
+    error.textContent = "";
+  });
 
   function validate(data) {
     const slots = slotsFor(data.date);
+    if (!data.date) return ["Please choose a date.", dateEl];
     if (!slots || !slots.length) return ["Please choose an available date.", dateEl];
     if (!slots.includes(data.time)) return ["Please choose a time.", timeEl];
+    const party = Number(data.party);
+    if (!Number.isInteger(party) || party < 1 || party > R.maxParty) return ["Please choose the number of guests.", $("party")];
     if (!data.name) return ["Please enter your name.", $("name")];
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) return ["Please enter a valid email address.", $("email")];
     return null;
@@ -74,7 +96,7 @@
     $("done-text").textContent = text;
     const rows = [
       ["Date", prettyDate(data.date)],
-      ["Time", data.time],
+      ["Time", fmtTime(data.time)],
       ["Guests", data.party],
       ["Name", data.name],
     ];
@@ -95,57 +117,64 @@
     window.scrollTo(0, 0);
   }
 
+  let sending = false;
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (sending) return;
     error.textContent = "";
-    const data = Object.fromEntries(new FormData(form));
-    Object.keys(data).forEach((k) => (data[k] = String(data[k]).trim()));
+    const data = {};
+    new FormData(form).forEach((v, k) => (data[k] = String(v).trim()));
     const problem = validate(data);
     if (problem) {
       error.textContent = problem[0];
+      problem[1].setAttribute("aria-invalid", "true");
       problem[1].focus();
       return;
     }
+    const guests = data.party + (data.party === "1" ? " guest" : " guests");
+    const summaryLine = prettyDate(data.date) + " at " + fmtTime(data.time) + ", " + guests;
 
     if (R.endpoint) {
-      const btn = $("submit");
-      btn.disabled = true;
-      btn.textContent = "Sending…";
+      sending = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = "sending…";
       try {
         const res = await fetch(R.endpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: JSON.stringify(data),
+          body: JSON.stringify(Object.assign({ _subject: "Reservation request — " + summaryLine }, data)),
         });
-        if (!res.ok) throw new Error(res.status);
-        showDone(data, "Your request is with us. We'll confirm by email at " + data.email + " shortly.");
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        showDone(data, "Your request is with us. It isn't confirmed yet — we'll reply to " + data.email + " to confirm.");
       } catch (err) {
-        error.textContent = "Sorry, that didn't send. Please try again or email " + C.email + ".";
+        error.textContent = "Sorry, that didn't send. Please try again, or email " + C.email + ".";
       } finally {
-        btn.disabled = false;
-        btn.textContent = "Request reservation";
+        sending = false;
+        submitBtn.disabled = false;
+        submitBtn.textContent = SUBMIT_LABEL;
       }
       return;
     }
 
-    // No endpoint configured: hand the request to the guest's email app.
+    // No endpoint configured: hand the request to the guest's own email app.
     const body = [
       "Reservation request",
       "",
       "Date: " + prettyDate(data.date),
-      "Time: " + data.time,
+      "Time: " + fmtTime(data.time),
       "Guests: " + data.party,
       "Name: " + data.name,
       "Email: " + data.email,
-      data.phone && "Phone: " + data.phone,
-      data.notes && "Notes: " + data.notes,
-    ].filter((l) => typeof l === "string").join("\n");
-    const subject = "Reservation — " + data.date + " " + data.time + ", " + data.party + " guests";
+      data.phone ? "Phone: " + data.phone : null,
+      data.notes ? "Notes: " + data.notes : null,
+    ].filter((l) => l !== null).join("\r\n");
     window.location.href =
-      "mailto:" + C.email + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+      "mailto:" + C.email +
+      "?subject=" + encodeURIComponent("Reservation request — " + summaryLine) +
+      "&body=" + encodeURIComponent(body);
     showDone(
       data,
-      "Your email app should have opened with the request — press send to complete it. We'll reply to confirm. If nothing opened, email " + C.email + "."
+      "Your email app should have opened with the request — press send to complete it. It isn't confirmed until we reply. If nothing opened, email " + C.email + " with the details below."
     );
   });
 })();

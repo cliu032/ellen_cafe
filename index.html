@@ -1,71 +1,75 @@
 <!doctype html>
 <html lang="en">
 <head>
+  <title>ellen cafe &amp; eatery — Alexandria, Sydney</title>
+  <meta name="description" content="ellen cafe &amp; eatery, 18 Huntley St, Alexandria. Open Tuesday to Sunday.">
+  <meta property="og:title" content="ellen cafe &amp; eatery">
+  <meta property="og:description" content="Cafe &amp; eatery at 18 Huntley St, Alexandria. Open Tuesday to Sunday.">
+  <meta property="og:type" content="website">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ellen Cafe</title>
-  <meta name="description" content="Ellen Cafe — coffee, bakes and a quiet table. Reserve online.">
+  <meta name="theme-color" content="#f3efe4">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 fill=%27%23f3efe4%27/%3E%3Ctext x=%2732%27 y=%2747%27 font-family=%27Helvetica,Arial,sans-serif%27 font-weight=%27700%27 font-size=%2746%27 text-anchor=%27middle%27 fill=%27%23703223%27%3Ee%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
   <div class="wrap">
     <nav class="nav" aria-label="Main">
-      <a class="brand" href="index.html" data-cafe="name">Ellen Cafe</a>
+      <a class="brand" href="index.html" aria-label="ellen — home">ellen</a>
       <ul>
-        <li><a href="#menu">Menu</a></li>
-        <li><a href="#visit">Visit</a></li>
-        <li><a href="reserve.html">Reserve</a></li>
+        <li><a href="#menu">menu</a></li>
+        <li><a href="#visit">visit</a></li>
+        <li><a href="reserve.html">reserve</a></li>
       </ul>
     </nav>
 
-    <header class="hero">
-      <div class="label" data-cafe="tagline"></div>
-      <h1 data-cafe="name">Ellen Cafe</h1>
-      <p data-cafe="intro"></p>
-      <a class="btn" href="reserve.html">Reserve a table</a>
-    </header>
+    <main>
+      <header class="hero">
+        <h1 class="wordmark" aria-label="ellen cafe &amp; eatery"><span aria-hidden="true">caf<b>elle</b>atery<b>n</b></span></h1>
+        <p class="label" data-cafe="tagline"></p>
+        <p class="intro" data-cafe="intro"></p>
+        <a class="btn" href="reserve.html">reserve a table</a>
+      </header>
 
-    <section id="menu">
-      <div class="split">
-        <div>
-          <div class="label">01</div>
-          <h2>Menu</h2>
-        </div>
-        <div class="menu" id="menu-list"></div>
-      </div>
-    </section>
-
-    <section id="visit">
-      <div class="split">
-        <div>
-          <div class="label">02</div>
-          <h2>Visit</h2>
-        </div>
-        <div class="visit">
+      <section id="menu" aria-labelledby="menu-h">
+        <div class="split">
+          <h2 id="menu-h">menu</h2>
           <div>
-            <div class="label" style="margin-bottom:14px">Find us</div>
-            <div id="address"></div>
-            <p id="contact" style="margin-top:18px"></p>
-          </div>
-          <div>
-            <div class="label" style="margin-bottom:8px">Hours</div>
-            <table class="hours" id="hours"></table>
+            <div class="menu" id="menu-list"></div>
+            <p class="note" data-cafe="menuNote"></p>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="cta">
-      <div class="label">03</div>
-      <h2>Save a seat.</h2>
-      <a class="btn" href="reserve.html">Reserve a table</a>
-    </section>
+      <section id="visit" aria-labelledby="visit-h">
+        <div class="split">
+          <h2 id="visit-h">visit</h2>
+          <div class="visit">
+            <div>
+              <div class="label">find us</div>
+              <address id="address" style="font-style:normal"></address>
+              <p id="contact" style="margin-top:18px"></p>
+            </div>
+            <div>
+              <div class="label">hours</div>
+              <table class="hours" id="hours"></table>
+              <p class="note" data-cafe="hoursNote" style="margin-top:14px"></p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="cta" aria-labelledby="cta-h">
+        <h2 id="cta-h">save a seat.</h2>
+        <a class="btn" href="reserve.html">reserve a table</a>
+      </section>
+    </main>
 
     <footer>
-      <span>© <span id="year"></span> <span data-cafe="name">Ellen Cafe</span></span>
+      <span>© <span id="year"></span> <span data-cafe="name">ellen cafe &amp; eatery</span></span>
       <a class="link" id="ig" target="_blank" rel="noopener"></a>
     </footer>
   </div>
